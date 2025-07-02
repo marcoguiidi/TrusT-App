@@ -1,0 +1,105 @@
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  useContext,
+  ReactNode,
+} from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useWalletConnectModal } from "@walletconnect/modal-react-native";
+import { JsonRpcProvider } from "@ethersproject/providers";
+
+interface AuthContextType {
+  role: "user" | "company" | null;
+  selectRole: (selectedRole: "user" | "company") => Promise<void>;
+  walletConnected: boolean;
+  connectWallet: () => Promise<void>;
+  disconnectWallet: () => Promise<void>;
+  clearAllData: () => Promise<void>;
+  walletAddress: string | undefined;
+  provider: JsonRpcProvider | undefined;
+}
+
+export const AuthContext = createContext<AuthContextType | undefined>(
+  undefined,
+);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [role, setRole] = useState<"user" | "company" | null>(null);
+  const [walletConnected, setWalletConnected] = useState<boolean>(false);
+  const { isConnected, address, provider, open, close } =
+    useWalletConnectModal();
+
+  useEffect(() => {
+    const loadAuthState = async () => {
+      const storedRole = await AsyncStorage.getItem("userRole");
+      if (storedRole === "user" || storedRole === "company") {
+        setRole(storedRole);
+      }
+    };
+    loadAuthState();
+  }, []);
+
+  useEffect(() => {
+    setWalletConnected(isConnected);
+  }, [isConnected]);
+
+  const selectRole = async (selectedRole: "user" | "company") => {
+    setRole(selectedRole);
+    await AsyncStorage.setItem("userRole", selectedRole);
+  };
+
+  const connectWallet = async () => {
+    try {
+      await open();
+    } catch (e) {
+      console.error("Errore durante la connessione del wallet:", e);
+    }
+  };
+
+  const disconnectWallet = async () => {
+    try {
+      if (provider && isConnected) {
+        provider.disconnect();
+      }
+      setWalletConnected(false);
+      close();
+    } catch (e) {
+      console.error("Errore durante la disconnessione del wallet:", e);
+    }
+  };
+
+  const clearAllData = async () => {
+    await AsyncStorage.clear();
+    setRole(null);
+    setWalletConnected(false);
+    if (isConnected && provider) {
+      provider.disconnect();
+    }
+    setWalletConnected(false);
+    close();
+  };
+
+  const contextValue: AuthContextType = {
+    role,
+    selectRole,
+    walletConnected,
+    connectWallet,
+    disconnectWallet,
+    clearAllData,
+    walletAddress: address,
+    provider: provider as JsonRpcProvider | undefined,
+  };
+
+  return (
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};

@@ -1,10 +1,32 @@
 module.exports = function (api) {
   api.cache(true);
-  let plugins = [];
-
   return {
-    presets: [['babel-preset-expo', { jsxImportSource: 'nativewind' }], 'nativewind/babel'],
-
-    plugins,
+    presets: [
+      [
+        "babel-preset-expo",
+        {
+          unstable_transformImportMeta: true,
+        },
+      ],
+      "nativewind/babel",
+    ],
+    plugins: [
+      [
+        "module-resolver",
+        {
+          alias: {
+            crypto: "react-native-crypto",
+            stream: "react-native-stream",
+            buffer: "@craftzdog/react-native-buffer",
+          },
+        },
+      ],
+      [
+        "expo-router/babel",
+        {
+          untranspiledModules: [],
+        },
+      ],
+    ],
   };
 };

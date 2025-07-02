@@ -3,36 +3,70 @@
     "name": "trustApp",
     "slug": "trustApp",
     "version": "1.0.0",
-
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-
-    "experiments": {
-      "tsconfigPaths": true
-    },
-
-    "plugins": [],
-
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-
-    "userInterfaceStyle": "light",
-
+    "icon": "./assets/images/icon.png",
+    "scheme": "trustSmart",
+    "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "image": "./assets/images/splash_screen.png",
+      "resizeMode": "contain"
     },
-    "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "jsEngine": "jsc",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": [
+          "metamask",
+          "trust",
+          "rainbow",
+          "wc",
+          "metamask",
+          "trust",
+          "rainbow",
+          "wc"
+        ]
+      },
+      "bundleIdentifier": "com.trust.trustSmart"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+      "jsEngine": "jsc",
+      "package": "com.trust.trustSmart",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "trustSmart"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
+      "queries": {
+        "package": [
+          "com.metamask.android",
+          "com.trustwallet.root",
+          "me.rainbow"
+        ]
       }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "server",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "experiments": {
+      "tsconfigPaths": true,
+      "typedRoutes": true
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "extra": {
+      "walletconnectProjectId": "6115e11a1e8e0e40048cf0fd64269848"
     }
   }
 }
