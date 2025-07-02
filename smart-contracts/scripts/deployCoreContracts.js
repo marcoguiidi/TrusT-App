@@ -1,4 +1,3 @@
-// smart-contracts/scripts/deployCoreContracts.js
 const { ethers } = require("hardhat");
 const fs = require("fs");
 const path = require("path");
@@ -11,14 +10,48 @@ async function main() {
     "Account balance:",
     (await ethers.provider.getBalance(deployer.address)).toString()
   );
-  // 1. Deploy del MyToken
+
+  // 1. Deploy del MyToken (TulToken)
   const TulToken = await ethers.getContractFactory("TulToken");
-  const initialSupply = ethers.parseEther("10");
+  const initialSupply = ethers.parseEther("1000000");
 
   const myToken = await TulToken.deploy(initialSupply);
   await myToken.waitForDeployment();
   const myTokenAddress = await myToken.getAddress();
   console.log("TulToken deployed to:", myTokenAddress);
+
+  // --- Distribuzione dei token ai wallet specifici ---
+  const wallet1Address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+  const wallet2Address = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8";
+  const amountToDistribute = ethers.parseEther("1000");
+
+  console.log(
+    `Distribuendo ${ethers.formatEther(
+      amountToDistribute
+    )} TulToken a ${wallet1Address} e ${wallet2Address}...`
+  );
+
+  // Invia token al primo wallet
+  let tx1 = await myToken.transfer(wallet1Address, amountToDistribute);
+  await tx1.wait();
+  console.log(
+    `Inviati ${ethers.formatEther(
+      amountToDistribute
+    )} TulToken a ${wallet1Address}. Nuovo saldo: ${ethers.formatEther(
+      await myToken.balanceOf(wallet1Address)
+    )}`
+  );
+
+  let tx2 = await myToken.transfer(wallet2Address, amountToDistribute);
+  await tx2.wait();
+  console.log(
+    `Inviati ${ethers.formatEther(
+      amountToDistribute
+    )} TulToken a ${wallet2Address}. Nuovo saldo: ${ethers.formatEther(
+      await myToken.balanceOf(wallet2Address)
+    )}`
+  );
+  // --- Fine distribuzione token ---
 
   // 2. Deploy del UserCompanyRegistry
   const UserCompanyRegistry = await ethers.getContractFactory(
