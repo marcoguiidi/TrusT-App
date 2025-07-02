@@ -29,6 +29,16 @@ interface IWalletConnectEip1193Provider extends EIP1193Provider {
   request: (args: { method: string; params?: any[] }) => Promise<any>;
 }
 
+interface SmartInsuranceDetails {
+  userWallet: string;
+  companyWallet: string;
+  premiumAmount: string;
+  insuranceDescription: string;
+  payoutAmount: string;
+  tokenAddress: string;
+  currentStatus: number;
+}
+
 interface AuthContextType {
   selectedAppRole: "user" | "company" | null;
   selectAppRole: (selectedRole: "user" | "company") => Promise<void>;
@@ -63,6 +73,9 @@ interface AuthContextType {
     insuredWalletAddress: string,
   ) => Promise<void>;
   getSmartInsurancesForWallet: (walletAddr?: string) => Promise<string[]>;
+  getDetailForSmartInsurance: (
+    insuranceAddress: string,
+  ) => Promise<SmartInsuranceDetails | null>;
   getMyTokenContract: () => Contract | null;
   getUserCompanyRegistryContract: () => Contract | null;
   getIndividualWalletInfoContract: () => Contract | null;
@@ -518,7 +531,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const registerSmartInsuranceForUser = async (
-    targetWalletAddress: string, // L'indirizzo del wallet dell'utente (non il IWIC address)
+    targetWalletAddress: string, // L'indirizzo del wallet dell'utente
     insuranceContractAddress: string,
   ) => {
     if (
@@ -760,7 +773,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Ho modificato la firma di questa funzione per accettare provider e registryContract come argomenti
   const getWalletTypeOnChain = async (
     walletAddr?: string,
     passedProvider?: JsonRpcProvider | null,
@@ -878,6 +890,64 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const getDetailForSmartInsurance = async (
+    insuranceAddress: string,
+  ): Promise<SmartInsuranceDetails | null> => {
+    if (!insuranceAddress || insuranceAddress === ethers.ZeroAddress) {
+      console.error("Invalid SmartInsurance address provided.");
+      return null;
+    }
+
+    const smartInsuranceContract = getSmartInsuranceContract(insuranceAddress);
+
+    if (!smartInsuranceContract) {
+      console.error(
+        `Failed to get contract instance for SmartInsurance at ${insuranceAddress}. Provider might not be ready.`,
+      );
+      return null;
+    }
+
+    try {
+      console.log(
+        `Attempting to fetch details for SmartInsurance at: ${insuranceAddress}`,
+      );
+
+      // Chiamiamo le funzioni di vista pubbliche del contratto
+      const userWallet = await smartInsuranceContract.userWallet();
+      const companyWallet = await smartInsuranceContract.companyWallet();
+      const premiumAmountWei = await smartInsuranceContract.premiumAmount();
+      const insuranceDescription =
+        await smartInsuranceContract.insuranceDescription();
+      const payoutAmountWei = await smartInsuranceContract.payoutAmount();
+      const tokenAddress = await smartInsuranceContract.tokenAddress();
+      const currentStatus = await smartInsuranceContract.currentStatus();
+
+      const premiumAmount = ethers.formatUnits(premiumAmountWei, 18);
+      const payoutAmount = ethers.formatUnits(payoutAmountWei, 18);
+
+      const details: SmartInsuranceDetails = {
+        userWallet: userWallet.toString(), // Converti BigInt a stringa se necessario
+        companyWallet: companyWallet.toString(),
+        premiumAmount: premiumAmount,
+        insuranceDescription: insuranceDescription,
+        payoutAmount: payoutAmount,
+        tokenAddress: tokenAddress.toString(),
+        currentStatus: Number(currentStatus), // Converte BigInt a number
+      };
+
+      console.log(
+        `Successfully fetched details for SmartInsurance ${insuranceAddress}:`,
+        details,
+      );
+      return details;
+    } catch (error: any) {
+      console.error(
+        `Error fetching details for SmartInsurance ${insuranceAddress}:`,
+        error.message || error,
+      );
+      return null;
+    }
+  };
   const getMyTokenContract = () => {
     if (!ethersProviderRef.current || currentChainId === null) {
       console.warn(
@@ -968,6 +1038,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     getWalletTypeOnChain,
     addSmartInsuranceToWallet,
     getSmartInsurancesForWallet,
+    getDetailForSmartInsurance,
     getMyTokenContract,
     getUserCompanyRegistryContract,
     getIndividualWalletInfoContract,
