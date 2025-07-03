@@ -54,7 +54,7 @@ contract SmartInsurance is Ownable {
 
         IERC20 token = IERC20(tokenAddress);
         // Trasferisci il premio dal mittente (utente) a questo contratto di assicurazione
-        require(token.transferFrom(msg.sender, address(this), premiumAmount), "Token transfer failed");
+        require(token.transferFrom(msg.sender, companyWallet, premiumAmount), "Token transfer failed");
 
         currentStatus = Status.Active;
         emit PremiumPaid(msg.sender, premiumAmount);

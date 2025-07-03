@@ -80,6 +80,7 @@ interface AuthContextType {
   getUserCompanyRegistryContract: () => Contract | null;
   getIndividualWalletInfoContract: () => Contract | null;
   getSmartInsuranceContract: (address: string) => Contract | null;
+  paySmartInsurancePremium: (insuranceAddress: string) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -321,7 +322,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const disconnectWallet = async () => {
     try {
       // @ts-ignore
-      if (wcProvider && wcProvider.disconnect) {
+      if (wcProvider) {
         // @ts-ignore
         await wcProvider.disconnect();
       }
@@ -531,7 +532,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const registerSmartInsuranceForUser = async (
-    targetWalletAddress: string, // L'indirizzo del wallet dell'utente
+    targetWalletAddress: string,
     insuranceContractAddress: string,
   ) => {
     if (
@@ -564,7 +565,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         `Company ${address} attempting to register SmartInsurance ${insuranceContractAddress} for user ${targetWalletAddress}...`,
       );
 
-      // 1. Ottieni l'indirizzo dell'IndividualWalletInfo dell'utente assicurato tramite il Registry
       const userIndividualWalletInfoAddress =
         await registryContract.getIndividualWalletInfoAddress(
           targetWalletAddress,
@@ -576,8 +576,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         );
       }
 
-      // 2. Crea un'istanza del contratto IndividualWalletInfo dell'utente assicurato con il signer della compagnia
-      // Questo è possibile perché la compagnia (se l'initialOwner del IWIC è il Registry) è un InsuranceManager.
       const userIndividualWalletInfoContract = new Contract(
         userIndividualWalletInfoAddress,
         INDIVIDUAL_WALLET_INFO_ABI,
@@ -588,7 +586,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         `Calling addSmartInsuranceContract on IWIC ${userIndividualWalletInfoAddress} for user ${targetWalletAddress}...`,
       );
 
-      // 3. Chiama addSmartInsuranceContract sull'IndividualWalletInfo dell'utente assicurato
       const tx =
         await userIndividualWalletInfoContract.addSmartInsuranceContract(
           insuranceContractAddress,
@@ -596,7 +593,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log(
         `Transaction to add insurance for user sent. Hash: ${tx.hash}`,
       );
-      await tx.wait(); // Aspetta la conferma della transazione
+      await tx.wait();
 
       console.log(
         `SmartInsurance ${insuranceContractAddress} successfully added to IndividualWalletInfo of user ${targetWalletAddress}.`,
@@ -606,6 +603,118 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         `Error registering insurance ${insuranceContractAddress} for user ${targetWalletAddress}:`,
         e,
       );
+      throw e;
+    }
+  };
+
+  const paySmartInsurancePremium = async (insuranceAddress: string) => {
+    if (
+      !insuranceAddress ||
+      insuranceAddress === ethers.ZeroAddress ||
+      !address ||
+      !wcProvider ||
+      !currentChainId ||
+      !ethersProviderRef.current ||
+      !isCoreContractsReady
+    ) {
+      console.error(
+        "Blockchain components not ready: check insuranceAddress, current wallet address, wcProvider, currentChainId, ethersProvider, or core contracts status.",
+      );
+      throw new Error("Blockchain components not ready to pay premium.");
+    }
+
+    try {
+      console.log(
+        `Attempting to pay premium for SmartInsurance at: ${insuranceAddress} from wallet: ${address}`,
+      );
+
+      const tulTokenContract = getMyTokenContract();
+      const tulTokenAddress = await tulTokenContract?.getAddress();
+      if (!tulTokenContract || !tulTokenAddress) {
+        throw new Error(
+          "TulToken contract not initialized or address is missing.",
+        );
+      }
+
+      const tulTokenIface = new ethers.Interface(TUL_TOKEN_ABI);
+      const smartInsuranceIface = new ethers.Interface(SMART_INSURANCE_ABI);
+
+      const smartInsuranceContractRead = new Contract(
+        insuranceAddress,
+        SMART_INSURANCE_ABI,
+        ethersProviderRef.current,
+      );
+      const premiumAmount = await smartInsuranceContractRead.premiumAmount();
+      console.log(
+        `Premium amount to pay: ${ethers.formatEther(premiumAmount)} TulToken`,
+      );
+
+      // --- Transazione 1: APPROVAZIONE del contratto SmartInsurance a spendere i token TulToken ---
+      console.log(
+        `Sending approval transaction for SmartInsurance ${insuranceAddress} to spend ${ethers.formatEther(premiumAmount)} TulToken...`,
+      );
+
+      const approveData = tulTokenIface.encodeFunctionData("approve", [
+        insuranceAddress,
+        premiumAmount,
+      ]);
+
+      const signer = await ethersProviderRef.current.getSigner(address);
+      const currentNonce = await signer.getNonce();
+      console.log(`DEBUG: Current nonce for ${address}: ${currentNonce}`);
+      const approveTxHash = await (
+        wcProvider as IWalletConnectEip1193Provider
+      ).request({
+        method: "eth_sendTransaction",
+        params: [
+          {
+            from: address,
+            to: tulTokenAddress,
+            data: approveData,
+            chainId: `0x${currentChainId.toString(16)}`,
+          },
+        ],
+      });
+      console.log(`Approve transaction sent. Hash: ${approveTxHash}`);
+      await ethersProviderRef.current.waitForTransaction(approveTxHash);
+      console.log("Approval successful and confirmed.");
+
+      // --- Transazione 2: PAGAMENTO DEL PREMIO chiamando payPremium sulla SmartInsurance ---
+      console.log(
+        "Sending payPremium transaction on SmartInsurance contract...",
+      );
+
+      const payPremiumData = smartInsuranceIface.encodeFunctionData(
+        "payPremium",
+        [],
+      );
+
+      const payTxHash = await (
+        wcProvider as IWalletConnectEip1193Provider
+      ).request({
+        method: "eth_sendTransaction",
+        params: [
+          {
+            from: address,
+            to: insuranceAddress,
+            data: payPremiumData,
+            chainId: `0x${currentChainId.toString(16)}`,
+          },
+        ],
+      });
+      console.log(`Pay Premium transaction sent. Hash: ${payTxHash}`);
+      await ethersProviderRef.current.waitForTransaction(payTxHash);
+      console.log(
+        "Premium paid successfully and confirmed. Policy should now be Active!",
+      );
+    } catch (e: any) {
+      console.error("Error paying SmartInsurance premium:", e);
+      if (e.reason) console.error("Revert reason:", e.reason);
+      if (e.code === "UNPREDICTABLE_GAS_LIMIT") {
+        console.error(
+          "Potrebbe esserci un errore di revert nel contratto o insufficienza di fondi per il gas.",
+        );
+      }
       throw e;
     }
   };
@@ -620,7 +729,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (
       !insuredWalletAddress ||
       insuredWalletAddress === ethers.ZeroAddress ||
-      !address ||
+      !address || // L'indirizzo del wallet connesso (sarà companyWalletAddress)
       !wcProvider ||
       !currentChainId ||
       !ethersProviderRef.current ||
@@ -647,43 +756,66 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const premiumAmountWei = ethers.parseUnits(premiumAmount, 18);
     const payoutAmountWei = ethers.parseUnits(payoutAmount, 18);
 
-    const companyWalletAddress = address; // L'indirizzo del wallet connesso è la compagnia
+    const companyWalletAddress = address;
 
     try {
       console.log("Inizio creazione SmartInsurance...");
 
-      const smartInsuranceFactory = new ContractFactory(
+      const smartInsuranceIface = new ethers.Interface(
         SmartInsuranceArtifact.abi,
-        SmartInsuranceArtifact.bytecode,
-        await ethersProviderRef.current.getSigner(companyWalletAddress),
       );
 
-      console.log("Deploying SmartInsurance contract...");
-      const smartInsuranceContract = await smartInsuranceFactory.deploy(
+      const deployData = smartInsuranceIface.encodeDeploy([
         insuredWalletAddress,
         companyWalletAddress,
         premiumAmountWei,
         insuranceDescription,
         payoutAmountWei,
         tokenAddress,
-      );
+      ]);
+
+      const dataToSend =
+        SmartInsuranceArtifact.bytecode + deployData.substring(2);
 
       console.log(
-        "Transazione di deploy SmartInsurance inviata. Hash:",
-        smartInsuranceContract.deploymentTransaction()?.hash,
+        "Invio transazione di deploy SmartInsurance tramite MetaMask...",
       );
-      await smartInsuranceContract.waitForDeployment();
-      const deployedAddress = await smartInsuranceContract.getAddress();
+
+      const deployTxHash = await (
+        wcProvider as IWalletConnectEip1193Provider
+      ).request({
+        method: "eth_sendTransaction",
+        params: [
+          {
+            from: companyWalletAddress,
+            data: dataToSend,
+            chainId: `0x${currentChainId.toString(16)}`,
+          },
+        ],
+      });
+      console.log(
+        "Transazione di deploy SmartInsurance inviata. Hash:",
+        deployTxHash,
+      );
+
+      const receipt =
+        await ethersProviderRef.current.waitForTransaction(deployTxHash);
+      if (!receipt || !receipt.contractAddress) {
+        throw new Error(
+          "Failed to get contract address from deploy transaction receipt.",
+        );
+      }
+      const deployedAddress = receipt.contractAddress;
       console.log("SmartInsurance contratto deployato a:", deployedAddress);
 
-      // 2. Aggiungi la SmartInsurance all'individualWalletInfo dell'utente corrente (company)
       console.log(
         "Aggiungo la SmartInsurance all'individualWalletInfo del creatore (compagnia)...",
       );
-      await addSmartInsuranceToWallet(deployedAddress); // Questa aggiunge al wallet connesso
+
+      await addSmartInsuranceToWallet(deployedAddress);
+
       console.log("SmartInsurance aggiunta al wallet della compagnia.");
 
-      // 3. Aggiungi la SmartInsurance all'individualWalletInfo dell'utente assicurato
       if (
         insuredWalletAddress.toLowerCase() !==
         companyWalletAddress.toLowerCase()
@@ -738,6 +870,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         `DEBUG: Aggiunta del contratto SmartInsurance ${insuranceContractAddress} tramite wcProvider.request()...`,
       );
 
+      const signer = await ethersProviderRef.current.getSigner(address);
+      const currentNonce = await signer.getNonce();
+      console.log(`DEBUG: Current nonce for ${address}: ${currentNonce}`);
       const individualIface = new ethers.Interface(INDIVIDUAL_WALLET_INFO_ABI);
       const addInsuranceData = individualIface.encodeFunctionData(
         "addSmartInsuranceContract",
@@ -1043,6 +1178,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     getUserCompanyRegistryContract,
     getIndividualWalletInfoContract,
     getSmartInsuranceContract,
+    paySmartInsurancePremium,
   };
 
   return (

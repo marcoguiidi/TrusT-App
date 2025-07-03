@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
-  StyleSheet,
+  // StyleSheet, // Non più necessario
   Button,
   Image,
   Alert,
@@ -39,6 +39,7 @@ export default function BrowseScreen() {
     walletAddress,
     getSmartInsurancesForWallet,
     getDetailForSmartInsurance,
+    paySmartInsurancePremium,
   } = useAuth();
   const router = useRouter();
 
@@ -47,6 +48,8 @@ export default function BrowseScreen() {
   const [detailedInsuranceAddress, setDetailedInsuranceAddress] = useState("");
   const [details, setDetails] = useState<SmartInsuranceDetails | null>(null);
   const [isModalLoading, setIsModalLoading] = useState(false);
+  const [isPayingPremium, setIsPayingPremium] = useState(false);
+  const [key, setKey] = useState(0);
 
   useEffect(() => {
     setIsLoading(true);
@@ -71,6 +74,7 @@ export default function BrowseScreen() {
 
     fetchInsurances();
   }, [walletAddress, getSmartInsurancesForWallet]);
+
   useEffect(() => {
     const fetchDetailInsurance = async () => {
       if (!detailedInsuranceAddress) {
@@ -94,11 +98,43 @@ export default function BrowseScreen() {
     };
 
     fetchDetailInsurance();
-  }, [detailedInsuranceAddress, getDetailForSmartInsurance]);
+  }, [detailedInsuranceAddress, getDetailForSmartInsurance, key]);
 
   const copyToClipboard = async (text: string) => {
     await Clipboard.setStringAsync(text);
-    Alert.alert("Copied!", "Address copied to Clipboard!.");
+    Alert.alert("Copied!", "Address copied to clipboard.");
+  };
+
+  const handlePayPremium = async () => {
+    if (!detailedInsuranceAddress || !details || isPayingPremium) {
+      return;
+    }
+
+    if (walletAddress?.toLowerCase() !== details.userWallet.toLowerCase()) {
+      Alert.alert("Denied", "You are not the Insured wallet.");
+      return;
+    }
+
+    if (details.currentStatus !== 0) {
+      Alert.alert(
+        "Status not valid",
+        `Actual state: ${StatusMap[details.currentStatus]}.`,
+      );
+      return;
+    }
+
+    setIsPayingPremium(true);
+    try {
+      await paySmartInsurancePremium(detailedInsuranceAddress);
+      Alert.alert("Success", "The insurance is now active.");
+
+      setKey((prev) => prev + 1);
+    } catch (error: any) {
+      console.error("Error:", error);
+      Alert.alert("Error", `${error.message || "Unknown error"}`);
+    } finally {
+      setIsPayingPremium(false);
+    }
   };
 
   const CardView = ({ address }: { address: string }) => {
@@ -114,7 +150,7 @@ export default function BrowseScreen() {
           }`}
         >
           <Text className={`font-bold`}>
-            {`${address.slice(0, 10)}...${address.slice(-4)}`}
+            {`${address.slice(0, 6)}...${address.slice(-4)}`}
           </Text>
           <Text
             className={`text-sm ${
@@ -129,9 +165,9 @@ export default function BrowseScreen() {
   };
 
   return (
-    <SafeAreaView className="bg-white h-full items-center justify-center">
+    <SafeAreaView className="bg-white h-full items-center justify-start pt-8">
       <Text
-        className={`text-2xl font-bold my-5 ${
+        className={`text-2xl font-bold mb-6 ${
           selectedAppRole === "user" ? "text-green-500" : "text-blue-500"
         }`}
       >
@@ -142,7 +178,7 @@ export default function BrowseScreen() {
         onPress={() => {
           router.replace("/dashboard");
         }}
-        className={"text-lg font-medium text-blue-300"}
+        className={"text-lg font-medium text-blue-300 mb-4"}
       >
         Home
       </Text>
@@ -184,10 +220,11 @@ export default function BrowseScreen() {
         }}
       >
         <View className="flex-1 justify-center items-center bg-black/60">
-          <View className="m-5 bg-white rounded-2xl p-9 items-center shadow-xl w-[90%] max-h-[80%]">
+          <View className="m-5 bg-white rounded-2xl p-9 items-center shadow-xl w-[90%] max-h-[80%] justify-center">
             <Text className="text-2xl font-bold mb-5 text-gray-700">
               Smart Insurance Details
             </Text>
+
             {isModalLoading ? (
               <ActivityIndicator
                 size="large"
@@ -208,6 +245,7 @@ export default function BrowseScreen() {
                     </Text>
                   </TouchableOpacity>
                 </View>
+
                 <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
                   <Text className="text-base font-semibold text-purple-700 flex-1">
                     User Wallet:
@@ -220,6 +258,7 @@ export default function BrowseScreen() {
                     </Text>
                   </TouchableOpacity>
                 </View>
+
                 <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
                   <Text className="text-base font-semibold text-purple-700 flex-1">
                     Company Wallet:
@@ -232,6 +271,7 @@ export default function BrowseScreen() {
                     </Text>
                   </TouchableOpacity>
                 </View>
+
                 <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
                   <Text className="text-base font-semibold text-purple-700 flex-1">
                     Premium Amount:
@@ -240,6 +280,7 @@ export default function BrowseScreen() {
                     {details.premiumAmount} (Token Units)
                   </Text>
                 </View>
+
                 <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
                   <Text className="text-base font-semibold text-purple-700 flex-1">
                     Payout Amount:
@@ -248,6 +289,7 @@ export default function BrowseScreen() {
                     {details.payoutAmount} (Token Units)
                   </Text>
                 </View>
+
                 <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
                   <Text className="text-base font-semibold text-purple-700 flex-1">
                     Description:
@@ -256,6 +298,7 @@ export default function BrowseScreen() {
                     {details.insuranceDescription}
                   </Text>
                 </View>
+
                 <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
                   <Text className="text-base font-semibold text-purple-700 flex-1">
                     Token Address:
@@ -268,6 +311,7 @@ export default function BrowseScreen() {
                     </Text>
                   </TouchableOpacity>
                 </View>
+
                 <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
                   <Text className="text-base font-semibold text-purple-700 flex-1">
                     Status:
@@ -276,12 +320,31 @@ export default function BrowseScreen() {
                     {StatusMap[details.currentStatus] || "Unknown"}
                   </Text>
                 </View>
+
+                {details.currentStatus === 0 &&
+                  walletAddress?.toLowerCase() ===
+                    details.userWallet.toLowerCase() && (
+                    <TouchableOpacity
+                      onPress={handlePayPremium}
+                      className={`mt-5 bg-green-500 self-center rounded-full w-[200px] h-[45px] items-center justify-center ${isPayingPremium ? "opacity-50" : ""}`}
+                      disabled={isPayingPremium}
+                    >
+                      {isPayingPremium ? (
+                        <ActivityIndicator size="small" color="#ffffff" />
+                      ) : (
+                        <Text className="text-white font-bold text-lg">
+                          Pay Premium
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  )}
               </ScrollView>
             ) : (
               <Text className="text-base text-gray-600 mb-5">
                 No details found.
               </Text>
             )}
+
             <Button
               title="Close"
               onPress={() => {
