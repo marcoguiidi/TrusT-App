@@ -1,7 +1,6 @@
 import TulTokenContractData from "./TulTokenContractData.json";
 import UserCompanyRegistryContractData from "./UserCompanyRegistryContractData.json";
 
-// Interfaccia per definire la struttura degli indirizzi per una data rete
 export interface ContractAddresses {
   userCompanyRegistry: string;
   tulToken: string;
