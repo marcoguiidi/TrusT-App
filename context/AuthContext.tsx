@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useWalletConnectModal } from "@walletconnect/modal-react-native";
-import { Contract, JsonRpcProvider, ethers, ContractFactory } from "ethers";
+import { Contract, JsonRpcProvider, ethers } from "ethers";
 import { EIP1193Provider } from "@walletconnect/universal-provider";
 
 import {
@@ -16,6 +16,7 @@ import {
   INDIVIDUAL_WALLET_INFO_ABI,
   SMART_INSURANCE_ABI,
   TUL_TOKEN_ABI,
+  GATE_ABI,
   SolidityWalletType,
 } from "../constants/abis";
 
@@ -33,7 +34,10 @@ interface SmartInsuranceDetails {
   userWallet: string;
   companyWallet: string;
   premiumAmount: string;
-  insuranceDescription: string;
+  query: string;
+  sensor: string;
+  target_value: string;
+  geoloc: string;
   payoutAmount: string;
   tokenAddress: string;
   currentStatus: number;
@@ -55,15 +59,18 @@ interface AuthContextType {
   currentChainId: number | null;
 
   registerWalletOnChain: (type: "user" | "company") => Promise<void>;
-  // Ho aggiornato la firma qui per accettare provider e registryContract esplicitamente.
+
   getWalletTypeOnChain: (
     walletAddr?: string,
-    provider?: JsonRpcProvider | null, // Rendi opzionale se non sei in initEthers
-    registryContract?: Contract | null, // Rendi opzionale se non sei in initEthers
+    provider?: JsonRpcProvider | null,
+    registryContract?: Contract | null,
   ) => Promise<"user" | "company" | null>;
   createSmartInsurance: (
-    insuredWalletAddress: string, // Indirizzo dell'utente assicurato
-    insuranceDescription: string,
+    insuredWalletAddress: string,
+    query: string,
+    sensor: string,
+    target_value: number,
+    geoloc: string,
     premiumAmount: string,
     payoutAmount: string,
     tokenAddress: string,
@@ -81,6 +88,13 @@ interface AuthContextType {
   getIndividualWalletInfoContract: () => Contract | null;
   getSmartInsuranceContract: (address: string) => Contract | null;
   paySmartInsurancePremium: (insuranceAddress: string) => Promise<void>;
+  submitZoniaRequest: (
+    query: string,
+    ko: number,
+    ki: number,
+    fee: number,
+    chainParams?: string,
+  ) => Promise<string>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -165,8 +179,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       try {
         console.log("Inizializzazione JsonRpcProvider con URL ngrok...");
-        localProvider = new JsonRpcProvider(ngrokUrl); // Usa una variabile locale
-        ethersProviderRef.current = localProvider; // Aggiorna anche il ref per le altre funzioni
+        localProvider = new JsonRpcProvider(ngrokUrl);
+        ethersProviderRef.current = localProvider;
         console.log(
           "JsonRpcProvider inizializzato.",
           ethersProviderRef.current,
@@ -180,7 +194,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         );
 
         const currentContractAddresses =
-          chainIdToContractAddresses[localChainId]; // Usa la variabile locale per il chainId
+          chainIdToContractAddresses[localChainId];
 
         if (!currentContractAddresses) {
           console.error(
@@ -554,10 +568,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const registryContract = getUserCompanyRegistryContract();
-    const companySigner = await ethersProviderRef.current.getSigner(address);
+    console.log(`DEBUG: Register Smart Insurance for ${targetWalletAddress}`);
 
-    if (!registryContract || !companySigner) {
-      throw new Error("Registry contract or signer not available.");
+    if (!registryContract) {
+      throw new Error("Registry contract not available.");
     }
 
     try {
@@ -579,21 +593,54 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const userIndividualWalletInfoContract = new Contract(
         userIndividualWalletInfoAddress,
         INDIVIDUAL_WALLET_INFO_ABI,
-        companySigner,
+        ethersProviderRef.current,
       );
 
       console.log(
         `Calling addSmartInsuranceContract on IWIC ${userIndividualWalletInfoAddress} for user ${targetWalletAddress}...`,
       );
 
-      const tx =
-        await userIndividualWalletInfoContract.addSmartInsuranceContract(
-          insuranceContractAddress,
-        );
-      console.log(
-        `Transaction to add insurance for user sent. Hash: ${tx.hash}`,
+      const userIndividualWalletInfoContractReadOnly = new Contract(
+        userIndividualWalletInfoAddress,
+        INDIVIDUAL_WALLET_INFO_ABI,
+        ethersProviderRef.current,
       );
-      await tx.wait();
+
+      console.log(
+        `Calling addSmartInsuranceContract on IWIC ${userIndividualWalletInfoAddress} for user ${targetWalletAddress}...`,
+      );
+
+      const data =
+        userIndividualWalletInfoContractReadOnly.interface.encodeFunctionData(
+          "addSmartInsuranceContract",
+          [insuranceContractAddress],
+        );
+
+      const transaction = {
+        from: address,
+        to: userIndividualWalletInfoAddress,
+        data: data,
+      };
+
+      console.log(
+        "Sending transaction via wcProvider.request with eth_sendTransaction:",
+        transaction,
+      );
+
+      const txHash = await wcProvider.request({
+        method: "eth_sendTransaction",
+        params: [transaction],
+      });
+
+      console.log(
+        `Transaction to add insurance for user sent. Hash: ${txHash}`,
+      );
+
+      const receipt =
+        await ethersProviderRef.current.waitForTransaction(txHash);
+      if (!receipt || receipt.status === 0) {
+        throw new Error(`Transaction failed: ${txHash}`);
+      }
 
       console.log(
         `SmartInsurance ${insuranceContractAddress} successfully added to IndividualWalletInfo of user ${targetWalletAddress}.`,
@@ -659,9 +706,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         premiumAmount,
       ]);
 
-      const signer = await ethersProviderRef.current.getSigner(address);
-      const currentNonce = await signer.getNonce();
-      console.log(`DEBUG: Current nonce for ${address}: ${currentNonce}`);
       const approveTxHash = await (
         wcProvider as IWalletConnectEip1193Provider
       ).request({
@@ -721,7 +765,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const createSmartInsurance = async (
     insuredWalletAddress: string,
-    insuranceDescription: string,
+    query: string,
+    sensor: string,
+    target_value: number,
+    geoloc: string,
     premiumAmount: string,
     payoutAmount: string,
     tokenAddress: string,
@@ -729,7 +776,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (
       !insuredWalletAddress ||
       insuredWalletAddress === ethers.ZeroAddress ||
-      !address || // L'indirizzo del wallet connesso (sarà companyWalletAddress)
+      !address ||
       !wcProvider ||
       !currentChainId ||
       !ethersProviderRef.current ||
@@ -769,7 +816,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         insuredWalletAddress,
         companyWalletAddress,
         premiumAmountWei,
-        insuranceDescription,
+        query,
+        sensor,
+        target_value,
+        geoloc,
         payoutAmountWei,
         tokenAddress,
       ]);
@@ -870,9 +920,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         `DEBUG: Aggiunta del contratto SmartInsurance ${insuranceContractAddress} tramite wcProvider.request()...`,
       );
 
-      const signer = await ethersProviderRef.current.getSigner(address);
-      const currentNonce = await signer.getNonce();
-      console.log(`DEBUG: Current nonce for ${address}: ${currentNonce}`);
       const individualIface = new ethers.Interface(INDIVIDUAL_WALLET_INFO_ABI);
       const addInsuranceData = individualIface.encodeFunctionData(
         "addSmartInsuranceContract",
@@ -1047,12 +1094,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         `Attempting to fetch details for SmartInsurance at: ${insuranceAddress}`,
       );
 
-      // Chiamiamo le funzioni di vista pubbliche del contratto
       const userWallet = await smartInsuranceContract.userWallet();
       const companyWallet = await smartInsuranceContract.companyWallet();
       const premiumAmountWei = await smartInsuranceContract.premiumAmount();
-      const insuranceDescription =
-        await smartInsuranceContract.insuranceDescription();
+      const query = await smartInsuranceContract.query();
+      const sensor = await smartInsuranceContract.sensor();
+      const target_value = await smartInsuranceContract.target_value();
+      const geoloc = await smartInsuranceContract.geoloc();
       const payoutAmountWei = await smartInsuranceContract.payoutAmount();
       const tokenAddress = await smartInsuranceContract.tokenAddress();
       const currentStatus = await smartInsuranceContract.currentStatus();
@@ -1061,13 +1109,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const payoutAmount = ethers.formatUnits(payoutAmountWei, 18);
 
       const details: SmartInsuranceDetails = {
-        userWallet: userWallet.toString(), // Converti BigInt a stringa se necessario
+        userWallet: userWallet.toString(),
         companyWallet: companyWallet.toString(),
         premiumAmount: premiumAmount,
-        insuranceDescription: insuranceDescription,
+        query: query,
+        sensor: sensor,
+        target_value: target_value,
+        geoloc: geoloc,
         payoutAmount: payoutAmount,
         tokenAddress: tokenAddress.toString(),
-        currentStatus: Number(currentStatus), // Converte BigInt a number
+        currentStatus: Number(currentStatus),
       };
 
       console.log(
@@ -1083,6 +1134,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return null;
     }
   };
+
   const getMyTokenContract = () => {
     if (!ethersProviderRef.current || currentChainId === null) {
       console.warn(
@@ -1155,6 +1207,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return new Contract(contractAddress, SMART_INSURANCE_ABI, provider);
   };
 
+  const submitZoniaRequest = async (
+    query: string,
+    ko: number,
+    ki: number,
+    fee: number,
+    chainParams?: string,
+  ): Promise<string> => {};
+
   const contextValue: AuthContextType = {
     selectedAppRole,
     selectAppRole,
@@ -1179,6 +1239,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     getIndividualWalletInfoContract,
     getSmartInsuranceContract,
     paySmartInsurancePremium,
+    submitZoniaRequest,
   };
 
   return (

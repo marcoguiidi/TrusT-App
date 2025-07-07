@@ -20,7 +20,10 @@ interface SmartInsuranceDetails {
   userWallet: string;
   companyWallet: string;
   premiumAmount: string;
-  insuranceDescription: string;
+  query: string;
+  sensor: string;
+  target_value: number;
+  geoloc: string;
   payoutAmount: string;
   tokenAddress: string;
   currentStatus: number;
@@ -87,6 +90,7 @@ export default function BrowseScreen() {
         const insuranceDetails = await getDetailForSmartInsurance(
           detailedInsuranceAddress,
         );
+        // @ts-ignore
         setDetails(insuranceDetails);
       } catch (e) {
         console.error("Error fetching detailed insurance:", e);
@@ -292,10 +296,28 @@ export default function BrowseScreen() {
 
                 <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
                   <Text className="text-base font-semibold text-purple-700 flex-1">
-                    Description:
+                    Sensor:
                   </Text>
                   <Text className="text-base text-gray-700 flex-2 text-right">
-                    {details.insuranceDescription}
+                    {details.sensor}
+                  </Text>
+                </View>
+
+                <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
+                  <Text className="text-base font-semibold text-purple-700 flex-1">
+                    Target Value:
+                  </Text>
+                  <Text className="text-base text-gray-700 flex-2 text-right">
+                    {details.target_value}
+                  </Text>
+                </View>
+
+                <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
+                  <Text className="text-base font-semibold text-purple-700 flex-1">
+                    Geo Data:
+                  </Text>
+                  <Text className="text-base text-gray-700 flex-2 text-right">
+                    {details.geoloc}
                   </Text>
                 </View>
 

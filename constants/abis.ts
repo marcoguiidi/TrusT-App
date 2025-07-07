@@ -17,7 +17,7 @@ export const INDIVIDUAL_WALLET_INFO_ABI = IndividualWalletInfoABIJson;
 export const SMART_INSURANCE_ABI = SmartInsuranceABIJson;
 
 // ABI per l'istanza del contratto di Zonia
-export const ZONIA_GATE_ABI = GateABIJson.abi;
+export const GATE_ABI = GateABIJson.abi;
 
 // Mappatura di aiuto per i valori dell'enum Solidity
 export const SolidityWalletType = {

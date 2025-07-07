@@ -4,7 +4,7 @@ const path = require("path");
 
 async function main() {
   const [deployer] = await ethers.getSigners();
-
+  /*
   console.log("Deploying core contracts with the account:", deployer.address);
   console.log(
     "Account balance:",
@@ -21,8 +21,8 @@ async function main() {
   console.log("TulToken deployed to:", myTokenAddress);
 
   // --- Distribuzione dei token ai wallet specifici ---
-  const wallet1Address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
-  const wallet2Address = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8";
+  const wallet1Address = "0xbe90be3dd6747b80972aa17ea26e18153fdc128e";
+  const wallet2Address = "0x86cd3d6ef4a74dff8a55f96ab12e3dc4e9464b30";
   const amountToDistribute = ethers.parseEther("1000");
 
   console.log(
@@ -61,14 +61,14 @@ async function main() {
   await userCompanyRegistry.waitForDeployment();
   const registryAddress = await userCompanyRegistry.getAddress();
   console.log("UserCompanyRegistry deployed to:", registryAddress);
-
+*/
   // --- Salva i dati dei contratti nella cartella constants del tuo progetto Expo ---
   const constantsDir = path.resolve(__dirname, "../../constants"); // your-expo-project/constants/
 
   if (!fs.existsSync(constantsDir)) {
     fs.mkdirSync(constantsDir, { recursive: true });
   }
-
+  /*
   // Dati per MyToken
   const myTokenData = {
     address: myTokenAddress,
@@ -131,7 +131,7 @@ async function main() {
   console.log(
     `IndividualWalletInfo ABI saved to ${constantsDir}/IndividualWalletInfoABI.json`
   );
-
+*/
   // Salva solo l'ABI per SmartInsurance (indirizzi dinamici)
   const smartInsuranceAbi = JSON.parse(
     fs

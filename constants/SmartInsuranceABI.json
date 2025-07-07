@@ -18,7 +18,22 @@
       },
       {
         "internalType": "string",
-        "name": "_insuranceDescription",
+        "name": "_query",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_sensor",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_target_value",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "_geoloc",
         "type": "string"
       },
       {
@@ -193,7 +208,7 @@
   },
   {
     "inputs": [],
-    "name": "insuranceDescription",
+    "name": "geoloc",
     "outputs": [
       {
         "internalType": "string",
@@ -252,9 +267,48 @@
   },
   {
     "inputs": [],
+    "name": "query",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "renounceOwnership",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "sensor",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "target_value",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
