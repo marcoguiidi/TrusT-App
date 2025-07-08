@@ -43,6 +43,21 @@ interface SmartInsuranceDetails {
   currentStatus: number;
 }
 
+interface ChainParams {
+  w1: number;
+  w2: number;
+  w3: number;
+  w4: number;
+}
+
+interface InputRequest {
+  query: string;
+  chainParams: ChainParams;
+  ko: number;
+  ki: number;
+  fee: number;
+}
+
 interface AuthContextType {
   selectedAppRole: "user" | "company" | null;
   selectAppRole: (selectedRole: "user" | "company") => Promise<void>;
@@ -89,11 +104,11 @@ interface AuthContextType {
   getSmartInsuranceContract: (address: string) => Contract | null;
   paySmartInsurancePremium: (insuranceAddress: string) => Promise<void>;
   submitZoniaRequest: (
-    query: string,
+    insuranceAddress: string,
     ko: number,
     ki: number,
     fee: number,
-    chainParams?: string,
+    chainParams?: ChainParams,
   ) => Promise<string>;
 }
 
@@ -747,7 +762,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         ],
       });
       console.log(`Pay Premium transaction sent. Hash: ${payTxHash}`);
-      await ethersProviderRef.current.waitForTransaction(payTxHash);
+      await ethersProviderRef.current.waitForTransaction(payTxHash, 1);
       console.log(
         "Premium paid successfully and confirmed. Policy should now be Active!",
       );
@@ -1208,12 +1223,150 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const submitZoniaRequest = async (
-    query: string,
+    insuranceAddress: string,
     ko: number,
     ki: number,
     fee: number,
-    chainParams?: string,
-  ): Promise<string> => {};
+    chainParams?: ChainParams,
+  ): Promise<string> => {
+    if (
+      !insuranceAddress ||
+      insuranceAddress === ethers.ZeroAddress ||
+      !ko ||
+      !ki ||
+      !fee ||
+      !address ||
+      !wcProvider ||
+      !currentChainId ||
+      !ethersProviderRef.current ||
+      !isCoreContractsReady
+    ) {
+      console.error(
+        "Blockchain components not ready for Zonia request submission.",
+      );
+      throw new Error(
+        "Blockchain components not ready for Zonia request submission.",
+      );
+    }
+
+    const smartInsuranceIface = new ethers.Interface(SMART_INSURANCE_ABI);
+
+    const smartInsuranceContractRead = new Contract(
+      insuranceAddress,
+      SMART_INSURANCE_ABI,
+      ethersProviderRef.current,
+    );
+
+    const query = await smartInsuranceContractRead.query();
+    console.log(
+      `query for the insurance address: ${insuranceAddress}: ${query}`,
+    );
+
+    const GateIface = new ethers.Interface(GATE_ABI);
+
+    if (!chainParams) {
+      chainParams = {
+        w1: 1,
+        w2: 1,
+        w3: 1,
+        w4: 1,
+      };
+    }
+
+    const inputData: InputRequest = {
+      query: query,
+      chainParams: chainParams,
+      ko: ko,
+      ki: ki,
+      fee: fee,
+    };
+
+    const submitRequestData = GateIface.encodeFunctionData("submitRequest", [
+      inputData,
+    ]);
+
+    console.log("input di submitRequest:", inputData);
+
+    const submitHash = await (
+      wcProvider as IWalletConnectEip1193Provider
+    ).request({
+      method: "eth_sendTransaction",
+      params: [
+        {
+          from: address,
+          to: chainIdToContractAddresses[currentChainId]?.zoniaContract,
+          data: submitRequestData,
+          chainId: `0x${currentChainId.toString(16)}`,
+        },
+      ],
+    });
+    console.log("Zonia transaction sent. Hash", submitHash);
+
+    // Attendi che la transazione sia confermata sulla blockchain
+    const receipt = await ethersProviderRef.current.waitForTransaction(
+      submitHash,
+      1, // Attendere 1 conferma
+    );
+    console.log("Zonia transaction confirmed. Receipt:", receipt);
+
+    if (!receipt) {
+      throw new Error("Transaction receipt not found after confirmation.");
+    }
+
+    let requestId: string | undefined;
+
+    for (const log of receipt.logs) {
+      try {
+        const parsedLog = GateIface.parseLog(log);
+        console.log("DEBUG LOG:", parsedLog);
+        if (
+          parsedLog &&
+          parsedLog.name === "RequestSubmitted" &&
+          parsedLog.args.requestId
+        ) {
+          requestId = parsedLog.args.requestId;
+          console.log(`RequestSubmitted event found. RequestId: ${requestId}`);
+          break;
+        }
+      } catch (e) {}
+    }
+
+    if (!requestId) {
+      throw new Error(
+        "Failed to retrieve requestId from RequestSubmitted event. Ensure the smart contract emits this event.",
+      );
+    }
+
+    const gateContractRead = new Contract(
+      chainIdToContractAddresses[currentChainId]?.zoniaContract,
+      GATE_ABI,
+      ethersProviderRef.current,
+    );
+
+    return new Promise<string>((resolve, reject) => {
+      const timeoutMs = 5 * 60 * 1000;
+      let timeoutId: NodeJS.Timeout;
+
+      const listener = (eventRequestId: string, result: string) => {
+        if (eventRequestId.toLowerCase() === requestId?.toLowerCase()) {
+          clearTimeout(timeoutId);
+          console.log(
+            `ResultSubmitted event found for requestId ${requestId}. Result: ${result}`,
+          );
+
+          gateContractRead.off("ResultSubmitted", listener);
+          resolve(result);
+        }
+      };
+
+      gateContractRead.on("ResultSubmitted", listener);
+
+      timeoutId = setTimeout(() => {
+        gateContractRead.off("ResultSubmitted", listener);
+        reject(new Error("Zonia result submission timed out."));
+      }, timeoutMs);
+    });
+  };
 
   const contextValue: AuthContextType = {
     selectedAppRole,

@@ -43,6 +43,7 @@ export default function BrowseScreen() {
     getSmartInsurancesForWallet,
     getDetailForSmartInsurance,
     paySmartInsurancePremium,
+    submitZoniaRequest,
   } = useAuth();
   const router = useRouter();
 
@@ -107,6 +108,21 @@ export default function BrowseScreen() {
   const copyToClipboard = async (text: string) => {
     await Clipboard.setStringAsync(text);
     Alert.alert("Copied!", "Address copied to clipboard.");
+  };
+
+  const handleSubmitZonia = async () => {
+    try {
+      const result = await submitZoniaRequest(
+        detailedInsuranceAddress,
+        1,
+        1,
+        1,
+      );
+      console.log(result);
+      return;
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handlePayPremium = async () => {
@@ -360,6 +376,17 @@ export default function BrowseScreen() {
                       )}
                     </TouchableOpacity>
                   )}
+                {details.currentStatus === 1 && (
+                  // walletAddress?.toLowerCase() === details.userWallet.toLowerCase() &&
+                  <TouchableOpacity
+                    onPress={handleSubmitZonia}
+                    className={`mt-5 bg-green-500 self-center rounded-full w-[200px] h-[45px] items-center justify-center`}
+                  >
+                    <Text className="text-white font-bold text-lg">
+                      Check Data
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </ScrollView>
             ) : (
               <Text className="text-base text-gray-600 mb-5">

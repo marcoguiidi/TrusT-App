@@ -2,7 +2,7 @@ import TulTokenContractData from "./TulTokenContractData.json";
 import UserCompanyRegistryContractData from "./UserCompanyRegistryContractData.json";
 import IndividualWalletInfoABIJson from "./IndividualWalletInfoABI.json";
 import SmartInsuranceABIJson from "./SmartInsuranceABI.json";
-import GateABIJson from "./Gate_ABI.json";
+import GateABIJson from "./Gate.json";
 
 // ABI del tuo token
 export const TUL_TOKEN_ABI = TulTokenContractData.abi;
