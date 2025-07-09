@@ -1,5 +1,5 @@
 import "@walletconnect/react-native-compat";
-import React, { useEffect, useState } from "react"; // Importa useEffect
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -34,7 +34,6 @@ export default function UniversalLaunchScreen() {
   const [showEntryModal, setShowEntryModal] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
-  // Nuovo useEffect per gestire il reindirizzamento automatico
   useEffect(() => {
     // Assicurati che il wallet sia connesso, i contratti siano pronti,
     // e che walletTypeOnChain abbia un valore (non null)
@@ -57,7 +56,7 @@ export default function UniversalLaunchScreen() {
           console.log(
             `LOG: Chiamata da index a registerWalletOnChian per wallet ${walletAddress} con ruolo ${role}`,
           );
-          await registerWalletOnChain(role); // Invia la transazione per registrare il ruolo on-chain
+          await registerWalletOnChain(role);
           console.log(`Wallet registered on-chain as ${role}.`);
           router.replace("/dashboard");
         } catch (error) {
@@ -76,7 +75,6 @@ export default function UniversalLaunchScreen() {
     }
   };
 
-  // Se gli stati non sono ancora caricati, mostra un indicatore di caricamento
   if (
     walletConnected === undefined ||
     selectedAppRole === undefined ||

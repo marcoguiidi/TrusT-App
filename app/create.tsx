@@ -161,7 +161,7 @@ export default function CreateScreen() {
         setPremiumAmount("");
         setPayoutAmount("");
         setSensorType("s4agri:AmbientHumidity");
-        setTargetValue(0);
+        setTargetValue("");
         setLatitude("");
         setLongitude("");
         setRadius("");
