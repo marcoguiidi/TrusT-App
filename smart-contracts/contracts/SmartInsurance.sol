@@ -2,7 +2,8 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol"; // Interfaccia per il tuo token
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./IndividualWalletInfo.sol";
 
 contract SmartInsurance is Ownable {
     address public userWallet;
@@ -15,6 +16,9 @@ contract SmartInsurance is Ownable {
     uint256 public payoutAmount;
     address public tokenAddress;
 
+    address public userIndividualWalletInfo;
+    address public companyIndividualWalletInfo;
+
     enum Status { Pending, Active, Claimed, Cancelled }
     Status public currentStatus;
 
@@ -22,6 +26,7 @@ contract SmartInsurance is Ownable {
     event PremiumPaid(address indexed payer, uint256 amount);
     event PayoutExecuted(address indexed recipient, uint256 amount);
     event PolicyCancelled();
+    event StatusChanged(Status newStatus);
 
     constructor(
         address _userWallet,
@@ -32,7 +37,9 @@ contract SmartInsurance is Ownable {
         uint256 _target_value,
         string memory _geoloc,
         uint256 _payoutAmount,
-        address _tokenAddress
+        address _tokenAddress,
+        address _userIndividualWalletInfo,
+        address _companyIndividualWalletInfo
     ) Ownable(msg.sender) {
         require(_userWallet != address(0), "Invalid user wallet");
         require(_companyWallet != address(0), "Invalid company wallet");
@@ -41,6 +48,9 @@ contract SmartInsurance is Ownable {
         require(_payoutAmount > 0, "Payout must be greater than zero");
         require(bytes(_query).length > 0, "Query cannot be empty");
         require(_tokenAddress != address(0), "Invalid token address");
+        require(_userIndividualWalletInfo != address(0), "Invalid user IndividualWalletInfo address");
+        require(_companyIndividualWalletInfo != address(0), "Invalid company IndividualWalletInfo address");
+
 
         userWallet = _userWallet;
         companyWallet = _companyWallet;
@@ -52,8 +62,15 @@ contract SmartInsurance is Ownable {
         payoutAmount = _payoutAmount;
         tokenAddress = _tokenAddress;
         currentStatus = Status.Pending;
+        userIndividualWalletInfo = _userIndividualWalletInfo;
+        companyIndividualWalletInfo = _companyIndividualWalletInfo;
+
 
         emit PolicyCreated(userWallet, companyWallet, premiumAmount, payoutAmount);
+        emit StatusChanged(Status.Pending);
+
+        IndividualWalletInfo(userIndividualWalletInfo).addSmartInsuranceContract(address(this));
+        IndividualWalletInfo(companyIndividualWalletInfo).addSmartInsuranceContract(address(this));
     }
 
     function payPremium() public {
@@ -65,26 +82,33 @@ contract SmartInsurance is Ownable {
 
         currentStatus = Status.Active;
         emit PremiumPaid(msg.sender, premiumAmount);
+        emit StatusChanged(Status.Active);
+
+        IndividualWalletInfo(userIndividualWalletInfo).updateSmartInsuranceStatus(address(this));
+        IndividualWalletInfo(companyIndividualWalletInfo).updateSmartInsuranceStatus(address(this));
     }
 
-    function executePayout() public onlyOwner {
+    function executePayout() public {
         require(currentStatus == Status.Active, "Policy not active");
 
         IERC20 token = IERC20(tokenAddress);
-        require(token.transfer(userWallet, payoutAmount), "Token transfer failed");
+        require(token.transferFrom(companyWallet, userWallet, payoutAmount), "Token transfer failed");
 
         currentStatus = Status.Claimed;
         emit PayoutExecuted(userWallet, payoutAmount);
+        emit StatusChanged(Status.Claimed);
+
+        IndividualWalletInfo(userIndividualWalletInfo).updateSmartInsuranceStatus(address(this));
+        IndividualWalletInfo(companyIndividualWalletInfo).updateSmartInsuranceStatus(address(this));
     }
 
     function cancelPolicy() public onlyOwner {
         require(currentStatus == Status.Pending || currentStatus == Status.Active, "Policy cannot be cancelled in current status");
         currentStatus = Status.Cancelled;
         emit PolicyCancelled();
-    }
+        emit StatusChanged(Status.Cancelled);
 
-    function withdrawFunds(address _tokenAddress) public onlyOwner {
-        IERC20 token = IERC20(_tokenAddress);
-        token.transfer(owner(), token.balanceOf(address(this)));
+        IndividualWalletInfo(userIndividualWalletInfo).updateSmartInsuranceStatus(address(this));
+        IndividualWalletInfo(companyIndividualWalletInfo).updateSmartInsuranceStatus(address(this));
     }
 }

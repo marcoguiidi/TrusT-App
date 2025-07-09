@@ -94,7 +94,10 @@ interface AuthContextType {
     insuranceContractAddress: string,
     insuredWalletAddress: string,
   ) => Promise<void>;
-  getSmartInsurancesForWallet: (walletAddr?: string) => Promise<string[]>;
+  getSmartInsurancesForWallet: (
+    walletAddr: string,
+    status: "pending" | "active" | "closed",
+  ) => Promise<string[]>;
   getDetailForSmartInsurance: (
     insuranceAddress: string,
   ) => Promise<SmartInsuranceDetails | null>;
@@ -651,6 +654,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         `Transaction to add insurance for user sent. Hash: ${txHash}`,
       );
 
+      // @ts-ignore
       const receipt =
         await ethersProviderRef.current.waitForTransaction(txHash);
       if (!receipt || receipt.status === 0) {
@@ -712,6 +716,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       );
 
       // --- Transazione 1: APPROVAZIONE del contratto SmartInsurance a spendere i token TulToken ---
+
       console.log(
         `Sending approval transaction for SmartInsurance ${insuranceAddress} to spend ${ethers.formatEther(premiumAmount)} TulToken...`,
       );
@@ -762,7 +767,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         ],
       });
       console.log(`Pay Premium transaction sent. Hash: ${payTxHash}`);
-      await ethersProviderRef.current.waitForTransaction(payTxHash, 1);
+      const receipt = await ethersProviderRef.current.waitForTransaction(
+        payTxHash,
+        1,
+      );
+
+      if (!receipt) {
+        throw new Error("Transaction failed");
+      }
+
       console.log(
         "Premium paid successfully and confirmed. Policy should now be Active!",
       );
@@ -795,6 +808,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       !wcProvider ||
       !currentChainId ||
       !ethersProviderRef.current ||
+      !userCompanyRegistryContractRef.current ||
       !isCoreContractsReady
     ) {
       console.error(
@@ -827,6 +841,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         SmartInsuranceArtifact.abi,
       );
 
+      const userWalletInfo =
+        await userCompanyRegistryContractRef.current.getIndividualWalletInfoAddress(
+          insuredWalletAddress,
+        );
+
       const deployData = smartInsuranceIface.encodeDeploy([
         insuredWalletAddress,
         companyWalletAddress,
@@ -837,6 +856,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         geoloc,
         payoutAmountWei,
         tokenAddress,
+        userWalletInfo,
+        individualWalletInfoAddress,
       ]);
 
       const dataToSend =
@@ -873,6 +894,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const deployedAddress = receipt.contractAddress;
       console.log("SmartInsurance contratto deployato a:", deployedAddress);
 
+      /*
       console.log(
         "Aggiungo la SmartInsurance all'individualWalletInfo del creatore (compagnia)...",
       );
@@ -899,7 +921,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log(
           "L'utente assicurato è lo stesso della compagnia, polizza già aggiunta.",
         );
-      }
+      }*/
 
       return deployedAddress;
     } catch (e: any) {
@@ -1041,13 +1063,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const getSmartInsurancesForWallet = async (walletAddr?: string) => {
+  const getSmartInsurancesForWallet = async (
+    walletAddr: string,
+    status: string,
+  ) => {
     const provider = ethersProviderRef.current;
     const registryContractRead = getUserCompanyRegistryContract();
     if (
       !provider ||
       !registryContractRead ||
       (!walletAddr && !address) ||
+      !status ||
       currentChainId === null
     ) {
       console.warn(
@@ -1074,9 +1100,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         provider,
       );
 
-      const insuranceAddresses =
-        await individualContractForRead.getSmartInsuranceContracts();
-      console.log("insurances for the wallet:", insuranceAddresses);
+      let insuranceAddresses = [];
+      switch (status) {
+        case "active":
+          insuranceAddresses =
+            await individualContractForRead.getActiveSmartInsurances();
+          break;
+        case "closed":
+          insuranceAddresses =
+            await individualContractForRead.getClosedSmartInsurances();
+          break;
+        default:
+          insuranceAddresses =
+            await individualContractForRead.getSmartInsuranceContracts();
+          break;
+      }
+
+      console.log(status, "insurances for the wallet:", insuranceAddresses);
       return insuranceAddresses;
     } catch (error: any) {
       console.error(

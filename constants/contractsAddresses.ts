@@ -12,8 +12,8 @@ export const chainIdToContractAddresses: {
   [chainId: number]: ContractAddresses;
 } = {
   11155111: {
-    userCompanyRegistry: "0x78EE42B1E9BfF4E39a529Bc8551924BAF9bf30bB",
-    tulToken: "0xDF115B4846604022Be51c010831F8797afE6686a",
+    userCompanyRegistry: "0xA2b1D9F6841f9c907d85755030C0a158d2DE998e",
+    tulToken: "0xc9274F47FF98Fe987E233CD34aF50F962c2C6D2D",
     zoniaContract: "0xbb6849DC5D97Bd55DE9A23B58CD5bBF3Bfdda0FA",
     zoniaToken: "0x8821aFDa84d71988cf0b570C535FC502720B33DD",
   },

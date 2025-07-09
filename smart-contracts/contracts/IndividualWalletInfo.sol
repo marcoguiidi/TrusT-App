@@ -2,8 +2,8 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./SmartInsurance.sol";
 
-// Definizione dei tipi di wallet
     enum WalletType {
         None,   // 0
         User,   // 1
@@ -14,31 +14,17 @@ contract IndividualWalletInfo is Ownable {
     address public associatedWallet;
     WalletType public walletType;
 
-    // Nuovo mapping per autorizzare gli indirizzi a gestire le assicurazioni
-    mapping(address => bool) public isInsuranceManager;
 
     event WalletTypeSet(WalletType newType);
     event SmartInsuranceAdded(address indexed insuranceContract);
-    event InsuranceManagerSet(address indexed manager, bool status); // Nuovo evento
+    event SmartInsuranceStatusUpdated(address indexed insuranceContract);
 
     constructor(address _associatedWallet, address _initialOwner) Ownable(_initialOwner) {
         require(_associatedWallet != address(0), "Invalid associated wallet address");
         associatedWallet = _associatedWallet;
         walletType = WalletType.None;
-        // L'owner iniziale (UserCompanyRegistry) è un gestore di default
-        isInsuranceManager[_initialOwner] = true; // <-- AGGIUNTA
     }
 
-    // Aggiungi una funzione per gestire i manager delle assicurazioni
-    // Solo l'owner del contratto IndividualWalletInfo può chiamarla
-    function setInsuranceManager(address _manager, bool _status) public onlyOwner {
-        require(_manager != address(0), "Invalid manager address");
-        isInsuranceManager[_manager] = _status;
-        emit InsuranceManagerSet(_manager, _status);
-    }
-
-    // Questa funzione imposta il tipo di wallet.
-    // DEVE ESSERE CHIAMATA DALL'associatedWallet DOPO CHE LA PROPRIETÀ È STATA TRASFERITA.
     function setWalletType(WalletType _type) public {
         require(msg.sender == associatedWallet, "Only the associated wallet can set its type.");
         require(walletType == WalletType.None, "Wallet type already set.");
@@ -49,15 +35,15 @@ contract IndividualWalletInfo is Ownable {
     }
 
     address[] public smartInsuranceContracts;
+    address[] public activeSmartInsurances;
+    address[] public closedSmartInsurances;
 
-    // Modifica la funzione per consentire all'owner O a un manager autorizzato di aggiungere polizze
+
+
     function addSmartInsuranceContract(address _insuranceContract) public {
-        // L'owner (associatedWallet) può sempre aggiungere
-        // O un indirizzo che è stato autorizzato come InsuranceManager può aggiungere
-        // require(msg.sender == owner() || isInsuranceManager[msg.sender], "Only owner or authorized manager can add insurance");
         require(_insuranceContract != address(0), "Invalid insurance contract address");
 
-        // Prevenire duplicati (opzionale ma consigliato)
+
         for (uint i = 0; i < smartInsuranceContracts.length; i++) {
             require(smartInsuranceContracts[i] != _insuranceContract, "Insurance contract already added");
         }
@@ -70,11 +56,61 @@ contract IndividualWalletInfo is Ownable {
         return smartInsuranceContracts;
     }
 
+    function getActiveSmartInsurances() public view returns (address[] memory) {
+        return activeSmartInsurances;
+    }
+
+    function getClosedSmartInsurances() public view returns (address[] memory) {
+        return closedSmartInsurances;
+    }
+
     function getWalletType() public view returns (WalletType) {
         return walletType;
     }
 
     function getAssociatedWallet() public view returns (address) {
         return associatedWallet;
+    }
+
+    function _removeFromArray(address[] storage arr, address _element) internal returns (bool) {
+        for (uint i = 0; i < arr.length; i++) {
+            if (arr[i] == _element) {
+                arr[i] = arr[arr.length - 1];
+                arr.pop();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function updateSmartInsuranceStatus(address _insuranceContract) public {
+        require(_insuranceContract != address(0), "Invalid insurance contract address");
+
+        SmartInsurance insurance = SmartInsurance(_insuranceContract);
+        SmartInsurance.Status currentStatus = insurance.currentStatus();
+
+        bool wasInPending = _removeFromArray(smartInsuranceContracts, _insuranceContract);
+        bool wasInActive = _removeFromArray(activeSmartInsurances, _insuranceContract);
+        bool wasInClosed = _removeFromArray(closedSmartInsurances, _insuranceContract);
+
+        if (!wasInPending && !wasInActive && !wasInClosed) {
+            if (currentStatus == SmartInsurance.Status.Pending) {
+                smartInsuranceContracts.push(_insuranceContract);
+            } else if (currentStatus == SmartInsurance.Status.Active) {
+                activeSmartInsurances.push(_insuranceContract);
+            } else {
+                closedSmartInsurances.push(_insuranceContract);
+            }
+        } else {
+            if (currentStatus == SmartInsurance.Status.Pending) {
+                smartInsuranceContracts.push(_insuranceContract);
+            } else if (currentStatus == SmartInsurance.Status.Active) {
+                activeSmartInsurances.push(_insuranceContract);
+            } else {
+                closedSmartInsurances.push(_insuranceContract);
+            }
+        }
+
+        emit SmartInsuranceStatusUpdated(_insuranceContract);
     }
 }

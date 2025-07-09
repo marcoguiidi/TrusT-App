@@ -54,6 +54,9 @@ export default function BrowseScreen() {
   const [isModalLoading, setIsModalLoading] = useState(false);
   const [isPayingPremium, setIsPayingPremium] = useState(false);
   const [key, setKey] = useState(0);
+  const [status, setStatus] = useState<"pending" | "active" | "closed">(
+    "pending",
+  );
 
   useEffect(() => {
     setIsLoading(true);
@@ -65,7 +68,10 @@ export default function BrowseScreen() {
         return;
       }
       try {
-        const addresses = await getSmartInsurancesForWallet(walletAddress);
+        const addresses = await getSmartInsurancesForWallet(
+          walletAddress,
+          status,
+        );
         setInsuranceAddresses(addresses);
         console.log(`Smart insurances ottenute: ${addresses.length}`);
       } catch (e) {
@@ -77,7 +83,7 @@ export default function BrowseScreen() {
     };
 
     fetchInsurances();
-  }, [walletAddress, getSmartInsurancesForWallet]);
+  }, [walletAddress, getSmartInsurancesForWallet, key, status]);
 
   useEffect(() => {
     const fetchDetailInsurance = async () => {
@@ -202,6 +208,50 @@ export default function BrowseScreen() {
       >
         Home
       </Text>
+      <View className="flex flex-row items-center w-full h-[20px] justify-between px-10">
+        <TouchableOpacity
+          className={`px-1 border-2 border-white ${status == "pending" && `${selectedAppRole === "user" ? "border-b-green-500" : "border-b-blue-500"}`}`}
+          onPress={() => {
+            if (status !== "pending") setStatus("pending");
+          }}
+        >
+          <Text
+            className={`font-medium text-sm ${
+              selectedAppRole === "user" ? "text-green-500" : "text-blue-500"
+            }`}
+          >
+            PENDING
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          className={`px-1 border-2 border-white ${status == "active" && `${selectedAppRole === "user" ? "border-b-green-500" : "border-b-blue-500"}`}`}
+          onPress={() => {
+            if (status !== "active") setStatus("active");
+          }}
+        >
+          <Text
+            className={`font-medium text-sm ${
+              selectedAppRole === "user" ? "text-green-500" : "text-blue-500"
+            }`}
+          >
+            ACTIVE
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          className={`px-1 border-2 border-white ${status == "closed" && `${selectedAppRole === "user" ? "border-b-green-500" : "border-b-blue-500"}`}`}
+          onPress={() => {
+            if (status !== "closed") setStatus("closed");
+          }}
+        >
+          <Text
+            className={`font-medium text-sm ${
+              selectedAppRole === "user" ? "text-green-500" : "text-blue-500"
+            }`}
+          >
+            CLOSED
+          </Text>
+        </TouchableOpacity>
+      </View>
       <ScrollView
         className="h-full w-full"
         contentContainerStyle={{ alignItems: "center", paddingVertical: 20 }}

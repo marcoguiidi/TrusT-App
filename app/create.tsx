@@ -30,7 +30,7 @@ export default function CreateScreen() {
   const [sensorType, setSensorType] = useState<string>(
     "s4agri:AmbientHumidity",
   );
-  const [targetValue, setTargetValue] = useState(0);
+  const [targetValue, setTargetValue] = useState("");
   const [latitude, setLatitude] = useState<string>("");
   const [longitude, setLongitude] = useState<string>("");
   const [radius, setRadius] = useState<string>("");
@@ -89,6 +89,7 @@ export default function CreateScreen() {
     const latNum = parseFloat(latitude.replace(",", "."));
     const lonNum = parseFloat(longitude.replace(",", "."));
     const radNum = parseFloat(radius.replace(",", "."));
+    const targetValueNum = parseFloat(targetValue.replace(",", "."));
 
     if (isNaN(latNum) || latNum < -90 || latNum > 90) {
       setErrorMessage("Latitude must be a valid number between -90 and 90.");
@@ -118,7 +119,7 @@ export default function CreateScreen() {
         type: "Feature",
         geometry: {
           type: "Point",
-          coordinates: [lonNum, latNum],
+          coordinates: [latNum, lonNum],
         },
         properties: {
           radius: radNum,
@@ -139,11 +140,13 @@ export default function CreateScreen() {
 
       const geoloc = `lat: ${latNum}, lon: ${lonNum}, radius: ${radNum} m`;
 
+      const targetValueBigInt = ethers.toBigInt(targetValueNum);
+
       const deployedInsuranceAddress = await createSmartInsurance(
         insuredWalletAddress,
         query,
         sensorType,
-        targetValue,
+        targetValueBigInt,
         geoloc,
         formattedPremiumAmount,
         formattedPayoutAmount,

@@ -45,6 +45,16 @@
         "internalType": "address",
         "name": "_tokenAddress",
         "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_userIndividualWalletInfo",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_companyIndividualWalletInfo",
+        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
@@ -167,10 +177,36 @@
     "type": "event"
   },
   {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "enum SmartInsurance.Status",
+        "name": "newStatus",
+        "type": "uint8"
+      }
+    ],
+    "name": "StatusChanged",
+    "type": "event"
+  },
+  {
     "inputs": [],
     "name": "cancelPolicy",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "companyIndividualWalletInfo",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -339,7 +375,7 @@
   },
   {
     "inputs": [],
-    "name": "userWallet",
+    "name": "userIndividualWalletInfo",
     "outputs": [
       {
         "internalType": "address",
@@ -351,16 +387,16 @@
     "type": "function"
   },
   {
-    "inputs": [
+    "inputs": [],
+    "name": "userWallet",
+    "outputs": [
       {
         "internalType": "address",
-        "name": "_tokenAddress",
+        "name": "",
         "type": "address"
       }
     ],
-    "name": "withdrawFunds",
-    "outputs": [],
-    "stateMutability": "nonpayable",
+    "stateMutability": "view",
     "type": "function"
   }
 ]
