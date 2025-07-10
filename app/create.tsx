@@ -18,7 +18,6 @@ import { useAuth } from "../context/AuthContext";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ethers } from "ethers";
-import { Input } from "postcss";
 
 export default function CreateScreen() {
   const { createSmartInsurance, getMyTokenContract, walletAddress } = useAuth();
@@ -314,7 +313,6 @@ export default function CreateScreen() {
                 />
               </View>
             </View>
-            {/* Fine Campi per la Query Geografica */}
 
             <View className="mb-4">
               <Text className="text-lg font-bold mb-2 text-purple-700">

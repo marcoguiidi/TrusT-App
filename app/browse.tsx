@@ -44,6 +44,7 @@ export default function BrowseScreen() {
     getDetailForSmartInsurance,
     paySmartInsurancePremium,
     submitZoniaRequest,
+    paySmartInsurancePayout,
   } = useAuth();
   const router = useRouter();
 
@@ -160,6 +161,17 @@ export default function BrowseScreen() {
       Alert.alert("Error", `${error.message || "Unknown error"}`);
     } finally {
       setIsPayingPremium(false);
+    }
+  };
+
+  const handleRequestPayout = async () => {
+    try {
+      await paySmartInsurancePayout(detailedInsuranceAddress);
+      Alert.alert("Success", "The payout is received.");
+      setKey((prev) => prev + 1);
+    } catch (error: any) {
+      console.error("Error:", error);
+      Alert.alert("Error", `${error.message || "Unknown error"}`);
     }
   };
 
@@ -291,9 +303,17 @@ export default function BrowseScreen() {
       >
         <View className="flex-1 justify-center items-center bg-black/60">
           <View className="m-5 bg-white rounded-2xl p-9 items-center shadow-xl w-[90%] max-h-[80%] justify-center">
-            <Text className="text-2xl font-bold mb-5 text-gray-700">
+            <Text className="text-2xl font-bold text-gray-700">
               Smart Insurance Details
             </Text>
+            <TouchableOpacity
+              className="self-center mb-5"
+              onPress={() => copyToClipboard(detailedInsuranceAddress)}
+            >
+              <Text className="text-base self-center text-gray-500 underline flex-2 text-right">
+                {`${detailedInsuranceAddress.slice(0, 8)}...${detailedInsuranceAddress.slice(-6)}`}
+              </Text>
+            </TouchableOpacity>
 
             {isModalLoading ? (
               <ActivityIndicator
@@ -303,51 +323,39 @@ export default function BrowseScreen() {
               />
             ) : details ? (
               <ScrollView className="w-full mb-5">
-                <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
-                  <Text className="text-base font-semibold text-purple-700 flex-1">
-                    Address:
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => copyToClipboard(detailedInsuranceAddress)}
-                  >
-                    <Text className="text-base text-blue-500 underline flex-2 text-right">
-                      {`${detailedInsuranceAddress.slice(0, 8)}...${detailedInsuranceAddress.slice(-6)}`}
+                {selectedAppRole === "user" ? (
+                  <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
+                    <Text className="text-base font-semibold text-purple-700 flex-1">
+                      Company Wallet:
                     </Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
-                  <Text className="text-base font-semibold text-purple-700 flex-1">
-                    User Wallet:
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => copyToClipboard(details.userWallet)}
-                  >
-                    <Text className="text-base text-blue-500 underline flex-2 text-right">
-                      {`${details.userWallet.slice(0, 8)}...${details.userWallet.slice(-6)}`}
+                    <TouchableOpacity
+                      onPress={() => copyToClipboard(details.companyWallet)}
+                    >
+                      <Text className="text-base text-blue-500 underline flex-2 text-right">
+                        {`${details.companyWallet.slice(0, 8)}...${details.companyWallet.slice(-6)}`}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
+                    <Text className="text-base font-semibold text-purple-700 flex-1">
+                      User Wallet:
                     </Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
-                  <Text className="text-base font-semibold text-purple-700 flex-1">
-                    Company Wallet:
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => copyToClipboard(details.companyWallet)}
-                  >
-                    <Text className="text-base text-blue-500 underline flex-2 text-right">
-                      {`${details.companyWallet.slice(0, 8)}...${details.companyWallet.slice(-6)}`}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
+                    <TouchableOpacity
+                      onPress={() => copyToClipboard(details.userWallet)}
+                    >
+                      <Text className="text-base text-blue-500 underline flex-2 text-right">
+                        {`${details.userWallet.slice(0, 8)}...${details.userWallet.slice(-6)}`}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
                 <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
                   <Text className="text-base font-semibold text-purple-700 flex-1">
                     Premium Amount:
                   </Text>
                   <Text className="text-base text-gray-700 flex-2 text-right">
-                    {details.premiumAmount} (Token Units)
+                    {details.premiumAmount} (TTK)
                   </Text>
                 </View>
 
@@ -356,7 +364,7 @@ export default function BrowseScreen() {
                     Payout Amount:
                   </Text>
                   <Text className="text-base text-gray-700 flex-2 text-right">
-                    {details.payoutAmount} (Token Units)
+                    {details.payoutAmount} (TTK)
                   </Text>
                 </View>
 
@@ -404,7 +412,21 @@ export default function BrowseScreen() {
                   <Text className="text-base font-semibold text-purple-700 flex-1">
                     Status:
                   </Text>
-                  <Text className="text-base text-gray-700 flex-2 text-right">
+                  <Text
+                    className={`text-base flex-2 text-right ${
+                      StatusMap[details.currentStatus] == "Active"
+                        ? "text-green-700"
+                        : `${
+                            StatusMap[details.currentStatus] == "Cancelled"
+                              ? "text-red-700"
+                              : `${
+                                  StatusMap[details.currentStatus] == "Claimed"
+                                    ? "text-yellow-500"
+                                    : "text-gray-700"
+                                }`
+                          }`
+                    }`}
+                  >
                     {StatusMap[details.currentStatus] || "Unknown"}
                   </Text>
                 </View>
@@ -426,17 +448,30 @@ export default function BrowseScreen() {
                       )}
                     </TouchableOpacity>
                   )}
-                {details.currentStatus === 1 && (
-                  // walletAddress?.toLowerCase() === details.userWallet.toLowerCase() &&
-                  <TouchableOpacity
-                    onPress={handleSubmitZonia}
-                    className={`mt-5 bg-green-500 self-center rounded-full w-[200px] h-[45px] items-center justify-center`}
-                  >
-                    <Text className="text-white font-bold text-lg">
-                      Check Data
-                    </Text>
-                  </TouchableOpacity>
-                )}
+                {details.currentStatus === 1 &&
+                  walletAddress?.toLowerCase() ===
+                    details.userWallet.toLowerCase() && (
+                    <TouchableOpacity
+                      onPress={handleSubmitZonia}
+                      className={`mt-5 bg-green-500 self-center rounded-full w-[200px] h-[45px] items-center justify-center`}
+                    >
+                      <Text className="text-white font-bold text-lg">
+                        Check Data
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                {details.currentStatus === 1 &&
+                  walletAddress?.toLowerCase() ===
+                    details.userWallet.toLowerCase() && (
+                    <TouchableOpacity
+                      onPress={handleRequestPayout}
+                      className={`mt-5 bg-green-500 self-center rounded-full w-[200px] h-[45px] items-center justify-center`}
+                    >
+                      <Text className="text-white font-bold text-lg">
+                        Request Payout
+                      </Text>
+                    </TouchableOpacity>
+                  )}
               </ScrollView>
             ) : (
               <Text className="text-base text-gray-600 mb-5">

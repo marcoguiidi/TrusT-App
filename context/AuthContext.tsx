@@ -113,6 +113,7 @@ interface AuthContextType {
     fee: number,
     chainParams?: ChainParams,
   ) => Promise<string>;
+  paySmartInsurancePayout: (insuranceAddress: string) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -332,7 +333,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     initEthers();
-  }, [isConnected, address, wcProvider]); // Dipendenze per triggerare l'inizializzazione
+  }, [isConnected, address, wcProvider]);
 
   const selectAppRole = async (selectedRole: "user" | "company") => {
     try {
@@ -458,7 +459,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log(
           `DEBUG: Transazione di creazione inviata. Hash: ${createTxHash}`,
         );
-        await ethersProviderRef.current.waitForTransaction(createTxHash);
+        const receipt =
+          await ethersProviderRef.current.waitForTransaction(createTxHash);
+        if (!receipt || receipt.status == 0) {
+          throw new Error("Create IWInfo failed");
+        }
         console.log(
           `DEBUG: IndividualWalletInfo creato e proprietà trasferita con successo tramite Registry.`,
         );
@@ -544,9 +549,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log(
           `DEBUG: Transazione setWalletType inviata. Hash: ${setTypeTxHash}`,
         );
-        await ethersProviderRef.current.waitForTransaction(setTypeTxHash);
+        const receipt =
+          await ethersProviderRef.current.waitForTransaction(setTypeTxHash);
+        if (!receipt || receipt.status == 0) {
+          throw new Error("SetWallet transaction failed");
+        }
         console.log(`DEBUG: Tipo di wallet ${type} registrato con successo!`);
       }
+
       setWalletTypeOnChain(type);
     } catch (error: any) {
       console.error(
@@ -658,7 +668,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const receipt =
         await ethersProviderRef.current.waitForTransaction(txHash);
       if (!receipt || receipt.status === 0) {
-        throw new Error(`Transaction failed: ${txHash}`);
+        throw new Error(`AddSmartInsuranceForUser failed`);
       }
 
       console.log(
@@ -715,8 +725,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         `Premium amount to pay: ${ethers.formatEther(premiumAmount)} TulToken`,
       );
 
-      // --- Transazione 1: APPROVAZIONE del contratto SmartInsurance a spendere i token TulToken ---
-
       console.log(
         `Sending approval transaction for SmartInsurance ${insuranceAddress} to spend ${ethers.formatEther(premiumAmount)} TulToken...`,
       );
@@ -743,7 +751,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await ethersProviderRef.current.waitForTransaction(approveTxHash);
       console.log("Approval successful and confirmed.");
 
-      // --- Transazione 2: PAGAMENTO DEL PREMIO chiamando payPremium sulla SmartInsurance ---
       console.log(
         "Sending payPremium transaction on SmartInsurance contract...",
       );
@@ -772,12 +779,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         1,
       );
 
-      if (!receipt) {
-        throw new Error("Transaction failed");
+      if (!receipt || receipt.status == 0) {
+        throw new Error("PayPremium transaction failed.");
       }
 
       console.log(
         "Premium paid successfully and confirmed. Policy should now be Active!",
+        receipt,
       );
     } catch (e: any) {
       console.error("Error paying SmartInsurance premium:", e);
@@ -886,46 +894,141 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const receipt =
         await ethersProviderRef.current.waitForTransaction(deployTxHash);
-      if (!receipt || !receipt.contractAddress) {
+      if (!receipt || !receipt.contractAddress || receipt.status == 0) {
         throw new Error(
           "Failed to get contract address from deploy transaction receipt.",
         );
       }
+
+      console.log("receipt:", receipt);
+
       const deployedAddress = receipt.contractAddress;
       console.log("SmartInsurance contratto deployato a:", deployedAddress);
 
-      /*
+      const tulTokenContract = getMyTokenContract();
+      const tulTokenAddress = await tulTokenContract?.getAddress();
+      if (!tulTokenContract || !tulTokenAddress) {
+        throw new Error(
+          "TulToken contract not initialized or address is missing.",
+        );
+      }
+
+      const tulTokenIface = new ethers.Interface(TUL_TOKEN_ABI);
+
       console.log(
-        "Aggiungo la SmartInsurance all'individualWalletInfo del creatore (compagnia)...",
+        `Payout amount to pay: ${ethers.formatEther(payoutAmountWei)} TulToken`,
       );
 
-      await addSmartInsuranceToWallet(deployedAddress);
+      // --- Transazione 1: APPROVAZIONE del contratto SmartInsurance a spendere i token TulToken ---
 
-      console.log("SmartInsurance aggiunta al wallet della compagnia.");
+      const approveData = tulTokenIface.encodeFunctionData("approve", [
+        deployedAddress,
+        payoutAmountWei,
+      ]);
 
-      if (
-        insuredWalletAddress.toLowerCase() !==
-        companyWalletAddress.toLowerCase()
-      ) {
-        console.log(
-          "Aggiungo la SmartInsurance all'individualWalletInfo dell'utente assicurato...",
-        );
-        await registerSmartInsuranceForUser(
-          insuredWalletAddress,
-          deployedAddress,
-        );
-        console.log(
-          "SmartInsurance aggiunta al wallet dell'utente assicurato.",
-        );
-      } else {
-        console.log(
-          "L'utente assicurato è lo stesso della compagnia, polizza già aggiunta.",
-        );
-      }*/
+      const approveTxHash = await (
+        wcProvider as IWalletConnectEip1193Provider
+      ).request({
+        method: "eth_sendTransaction",
+        params: [
+          {
+            from: address,
+            to: tulTokenAddress,
+            data: approveData,
+            chainId: `0x${currentChainId.toString(16)}`,
+          },
+        ],
+      });
+      console.log(`Approve transaction sent. Hash: ${approveTxHash}`);
+      const approveReceipt =
+        await ethersProviderRef.current.waitForTransaction(approveTxHash);
+      if (!approveReceipt || approveReceipt.status == 0) {
+        throw new Error("Approve payout transaction failed");
+      }
+
+      console.log("Approval successful and confirmed.");
 
       return deployedAddress;
     } catch (e: any) {
       console.error("Errore durante la creazione della SmartInsurance:", e);
+      if (e.reason) console.error("Revert reason:", e.reason);
+      if (e.code === "UNPREDICTABLE_GAS_LIMIT") {
+        console.error(
+          "Potrebbe esserci un errore di revert nel contratto o insufficienza di fondi per il gas.",
+        );
+      }
+      throw e;
+    }
+  };
+
+  const paySmartInsurancePayout = async (insuranceAddress: string) => {
+    if (
+      !insuranceAddress ||
+      insuranceAddress === ethers.ZeroAddress ||
+      !address ||
+      !wcProvider ||
+      !currentChainId ||
+      !ethersProviderRef.current ||
+      !isCoreContractsReady
+    ) {
+      console.error(
+        "Blockchain components not ready: check insuranceAddress, current wallet address, wcProvider, currentChainId, ethersProvider, or core contracts status.",
+      );
+      throw new Error("Blockchain components not ready to pay premium.");
+    }
+
+    try {
+      console.log(
+        `Attempting to pay payout for SmartInsurance at: ${insuranceAddress} to wallet: ${address}`,
+      );
+
+      const smartInsuranceIface = new ethers.Interface(SMART_INSURANCE_ABI);
+
+      const smartInsuranceContractRead = new Contract(
+        insuranceAddress,
+        SMART_INSURANCE_ABI,
+        ethersProviderRef.current,
+      );
+      const payoutAmount = await smartInsuranceContractRead.payoutAmount();
+      console.log(
+        `payout amount to receive: ${ethers.formatEther(payoutAmount)} TulToken`,
+      );
+
+      console.log(
+        "Sending executePayout transaction on SmartInsurance contract...",
+      );
+
+      const executePayoutData = smartInsuranceIface.encodeFunctionData(
+        "executePayout",
+        [],
+      );
+
+      const payTxHash = await (
+        wcProvider as IWalletConnectEip1193Provider
+      ).request({
+        method: "eth_sendTransaction",
+        params: [
+          {
+            from: address,
+            to: insuranceAddress,
+            data: executePayoutData,
+            chainId: `0x${currentChainId.toString(16)}`,
+          },
+        ],
+      });
+      console.log(`executePayout transaction sent. Hash: ${payTxHash}`);
+      const receipt = await ethersProviderRef.current.waitForTransaction(
+        payTxHash,
+        1,
+      );
+
+      if (!receipt || receipt.status == 0) {
+        throw new Error("executePayout transaction failed.");
+      }
+
+      console.log("Payout received succesfully!", receipt);
+    } catch (e: any) {
+      console.error("Error receiving SmartInsurance payout:", e);
       if (e.reason) console.error("Revert reason:", e.reason);
       if (e.code === "UNPREDICTABLE_GAS_LIMIT") {
         console.error(
@@ -979,7 +1082,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log(
         `DEBUG: Transazione addSmartInsuranceContract inviata. Hash: ${addTxHash}`,
       );
-      await ethersProviderRef.current.waitForTransaction(addTxHash);
+      const receipt =
+        await ethersProviderRef.current.waitForTransaction(addTxHash);
+      if (!receipt || !receipt.contractAddress || !receipt.status == 0) {
+        throw new Error("AddSmartInsuranceToWallet transaction failed.");
+      }
       console.log(
         `DEBUG: Contratto SmartInsurance ${insuranceContractAddress} aggiunto con successo!`,
       );
@@ -1349,8 +1456,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     );
     console.log("Zonia transaction confirmed. Receipt:", receipt);
 
-    if (!receipt) {
-      throw new Error("Transaction receipt not found after confirmation.");
+    if (!receipt || receipt.status == 0) {
+      throw new Error("Zonia submission transaction failed.");
     }
 
     let requestId: string | undefined;
@@ -1433,6 +1540,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     getSmartInsuranceContract,
     paySmartInsurancePremium,
     submitZoniaRequest,
+    paySmartInsurancePayout,
   };
 
   return (
