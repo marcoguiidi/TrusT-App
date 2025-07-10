@@ -1449,16 +1449,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
     console.log("Zonia transaction sent. Hash", submitHash);
 
-    // Attendi che la transazione sia confermata sulla blockchain
-    const receipt = await ethersProviderRef.current.waitForTransaction(
-      submitHash,
-      1, // Attendere 1 conferma
-    );
-    console.log("Zonia transaction confirmed. Receipt:", receipt);
+    const receipt =
+      await ethersProviderRef.current.waitForTransaction(submitHash);
+    console.log("receipt zonia", receipt);
 
     if (!receipt || receipt.status == 0) {
       throw new Error("Zonia submission transaction failed.");
     }
+
+    console.log("Zonia transaction confirmed. Receipt:", receipt);
 
     let requestId: string | undefined;
 
