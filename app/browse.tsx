@@ -448,18 +448,17 @@ export default function BrowseScreen() {
                       )}
                     </TouchableOpacity>
                   )}
-                {details.currentStatus === 1 &&
-                  walletAddress?.toLowerCase() ===
-                    details.userWallet.toLowerCase() && (
-                    <TouchableOpacity
-                      onPress={handleSubmitZonia}
-                      className={`mt-5 bg-green-500 self-center rounded-full w-[200px] h-[45px] items-center justify-center`}
-                    >
-                      <Text className="text-white font-bold text-lg">
-                        Check Data
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+                {details.currentStatus === 1 && (
+                  // walletAddress?.toLowerCase() === details.userWallet.toLowerCase() &&
+                  <TouchableOpacity
+                    onPress={handleSubmitZonia}
+                    className={`mt-5 bg-green-500 self-center rounded-full w-[200px] h-[45px] items-center justify-center`}
+                  >
+                    <Text className="text-white font-bold text-lg">
+                      Check Data
+                    </Text>
+                  </TouchableOpacity>
+                )}
                 {details.currentStatus === 1 &&
                   walletAddress?.toLowerCase() ===
                     details.userWallet.toLowerCase() && (

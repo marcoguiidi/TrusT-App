@@ -18,6 +18,7 @@ import {
   TUL_TOKEN_ABI,
   GATE_ABI,
   SolidityWalletType,
+  ZONIA_TOKEN_ABI,
 } from "../constants/abis";
 
 import SmartInsuranceArtifact from "../smart-contracts/artifacts/contracts/SmartInsurance.sol/SmartInsurance.json";
@@ -112,7 +113,7 @@ interface AuthContextType {
     ki: number,
     fee: number,
     chainParams?: ChainParams,
-  ) => Promise<string>;
+  ) => Promise<string | undefined>;
   paySmartInsurancePayout: (insuranceAddress: string) => Promise<void>;
 }
 
@@ -1375,7 +1376,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     ki: number,
     fee: number,
     chainParams?: ChainParams,
-  ): Promise<string> => {
+  ): Promise<string | undefined> => {
     if (
       !insuranceAddress ||
       insuranceAddress === ethers.ZeroAddress ||
@@ -1388,130 +1389,227 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       !ethersProviderRef.current ||
       !isCoreContractsReady
     ) {
-      console.error(
-        "Blockchain components not ready for Zonia request submission.",
-      );
-      throw new Error(
-        "Blockchain components not ready for Zonia request submission.",
-      );
+      const errorMessage =
+        "Blockchain components not ready for Zonia request submission.";
+      console.error(errorMessage);
+      throw new Error(errorMessage);
     }
 
-    const smartInsuranceIface = new ethers.Interface(SMART_INSURANCE_ABI);
+    try {
+      const smartInsuranceContractRead = new Contract(
+        insuranceAddress,
+        SMART_INSURANCE_ABI,
+        ethersProviderRef.current,
+      );
+      const query = await smartInsuranceContractRead.query();
 
-    const smartInsuranceContractRead = new Contract(
-      insuranceAddress,
-      SMART_INSURANCE_ABI,
-      ethersProviderRef.current,
-    );
+      const zoniaTokenIface = new ethers.Interface(ZONIA_TOKEN_ABI);
 
-    const query = await smartInsuranceContractRead.query();
-    console.log(
-      `query for the insurance address: ${insuranceAddress}: ${query}`,
-    );
+      console.log(
+        `Sending approval transaction for Token ${chainIdToContractAddresses[currentChainId].zoniaToken} to spend ${ethers.formatEther(fee)} ZoniaToken...`,
+      );
 
-    const GateIface = new ethers.Interface(GATE_ABI);
+      const approveData = zoniaTokenIface.encodeFunctionData("approve", [
+        chainIdToContractAddresses[currentChainId].zoniaContract,
+        fee,
+      ]);
 
-    if (!chainParams) {
-      chainParams = {
-        w1: 1,
-        w2: 1,
-        w3: 1,
-        w4: 1,
+      const approveTxHash = await (
+        wcProvider as IWalletConnectEip1193Provider
+      ).request({
+        method: "eth_sendTransaction",
+        params: [
+          {
+            from: address,
+            to: chainIdToContractAddresses[currentChainId].zoniaToken,
+            data: approveData,
+            chainId: `0x${currentChainId.toString(16)}`,
+          },
+        ],
+      });
+      console.log(`Approve transaction sent. Hash: ${approveTxHash}`);
+      await ethersProviderRef.current.waitForTransaction(approveTxHash);
+      console.log("Approval successful and confirmed.");
+
+      const GateIface = new ethers.Interface(GATE_ABI);
+
+      if (!chainParams) {
+        chainParams = { w1: 25, w2: 25, w3: 25, w4: 25 };
+      }
+
+      const inputData: InputRequest = {
+        query: query,
+        chainParams: chainParams,
+        ko: ko,
+        ki: ki,
+        fee: fee,
       };
-    }
 
-    const inputData: InputRequest = {
-      query: query,
-      chainParams: chainParams,
-      ko: ko,
-      ki: ki,
-      fee: fee,
-    };
+      const submitRequestData = GateIface.encodeFunctionData("submitRequest", [
+        inputData,
+      ]);
 
-    const submitRequestData = GateIface.encodeFunctionData("submitRequest", [
-      inputData,
-    ]);
+      console.log("input di submitRequest:", inputData);
 
-    console.log("input di submitRequest:", inputData);
-
-    const submitHash = await (
-      wcProvider as IWalletConnectEip1193Provider
-    ).request({
-      method: "eth_sendTransaction",
-      params: [
-        {
-          from: address,
-          to: chainIdToContractAddresses[currentChainId]?.zoniaContract,
-          data: submitRequestData,
-          chainId: `0x${currentChainId.toString(16)}`,
-        },
-      ],
-    });
-    console.log("Zonia transaction sent. Hash", submitHash);
-
-    const receipt =
-      await ethersProviderRef.current.waitForTransaction(submitHash);
-    console.log("receipt zonia", receipt);
-
-    if (!receipt || receipt.status == 0) {
-      throw new Error("Zonia submission transaction failed.");
-    }
-
-    console.log("Zonia transaction confirmed. Receipt:", receipt);
-
-    let requestId: string | undefined;
-
-    for (const log of receipt.logs) {
+      let submitHash: string;
       try {
-        const parsedLog = GateIface.parseLog(log);
-        console.log("DEBUG LOG:", parsedLog);
-        if (
-          parsedLog &&
-          parsedLog.name === "RequestSubmitted" &&
-          parsedLog.args.requestId
-        ) {
-          requestId = parsedLog.args.requestId;
-          console.log(`RequestSubmitted event found. RequestId: ${requestId}`);
-          break;
-        }
-      } catch (e) {}
-    }
+        submitHash = await (
+          wcProvider as IWalletConnectEip1193Provider
+        ).request({
+          method: "eth_sendTransaction",
+          params: [
+            {
+              from: address,
+              to: chainIdToContractAddresses[currentChainId]?.zoniaContract,
+              data: submitRequestData,
+              chainId: `0x${currentChainId.toString(16)}`,
+            },
+          ],
+        });
+        console.log("Zonia transaction sent. Hash", submitHash);
+        console.log("qualcosa");
+      } catch (providerError: any) {
+        console.error("\n--- ERRORE DURANTE INVIO TRANSAZIONE AL PROVIDER ---");
+        console.error("Tipo di errore:", providerError.name || "Sconosciuto");
+        console.error("Messaggio:", providerError.message);
+        if (providerError.code)
+          console.error("Codice Ethers/RPC:", providerError.code);
+        if (providerError.data)
+          console.error("Dati errore (se presenti):", providerError.data);
+        console.error(
+          "Dettagli completi dell'errore dal provider:",
+          providerError,
+        );
+        console.error("---------------------------------------------------\n");
+        throw new Error(
+          `Failed to send transaction to provider: ${providerError.message}`,
+        );
+      }
+      console.log("qualcuno");
 
-    if (!requestId) {
-      throw new Error(
-        "Failed to retrieve requestId from RequestSubmitted event. Ensure the smart contract emits this event.",
+      const receipt =
+        await ethersProviderRef.current.waitForTransaction(submitHash);
+      console.log("receipt zonia", receipt);
+
+      if (!receipt || receipt.status == 0) {
+        console.error("\n--- ERRORE: TRANSAZIONE ZONIA REVERTITA ON-CHAIN ---");
+        console.error("Hash:", submitHash);
+        console.error("Stato:", receipt ? receipt.status : "N/A");
+        if (receipt && receipt.logs) {
+          console.error("Log:", receipt.logs);
+        }
+        throw new Error(
+          "Zonia submission transaction failed: transaction reverted on-chain.",
+        );
+      }
+
+      console.log("Zonia transaction confirmed. Receipt:", receipt);
+
+      let requestId: string | undefined;
+
+      for (const log of receipt.logs) {
+        try {
+          const parsedLog = GateIface.parseLog(log);
+          console.log("DEBUG LOG:", parsedLog);
+          if (
+            parsedLog &&
+            parsedLog.name === "RequestSubmitted" &&
+            parsedLog.args.requestId
+          ) {
+            requestId = parsedLog.args.requestId;
+            console.log(
+              `RequestSubmitted event found. RequestId: ${requestId}`,
+            );
+            break;
+          }
+        } catch (e) {
+          console.error("ERROR parsing log in submitZoniaRequest:", e);
+        }
+      }
+
+      if (!requestId) {
+        console.error("\n--- ERRORE: RequestId NON TROVATO ---");
+        throw new Error(
+          "Failed to retrieve requestId from RequestSubmitted event. Ensure the smart contract emits this event.",
+        );
+      }
+
+      const gateContractRead = new Contract(
+        chainIdToContractAddresses[currentChainId]?.zoniaContract,
+        GATE_ABI,
+        ethersProviderRef.current,
       );
-    }
 
-    const gateContractRead = new Contract(
-      chainIdToContractAddresses[currentChainId]?.zoniaContract,
-      GATE_ABI,
-      ethersProviderRef.current,
-    );
-
-    return new Promise<string>((resolve, reject) => {
-      const timeoutMs = 5 * 60 * 1000;
-      let timeoutId: NodeJS.Timeout;
-
-      const listener = (eventRequestId: string, result: string) => {
-        if (eventRequestId.toLowerCase() === requestId?.toLowerCase()) {
-          clearTimeout(timeoutId);
-          console.log(
-            `ResultSubmitted event found for requestId ${requestId}. Result: ${result}`,
-          );
-
-          gateContractRead.off("ResultSubmitted", listener);
-          resolve(result);
-        }
+      const sleep = (ms: number): Promise<void> => {
+        return new Promise((resolve) => setTimeout(resolve, ms));
       };
 
-      gateContractRead.on("ResultSubmitted", listener);
+      let requestTry = await gateContractRead.getRequest(requestId);
+      console.log("requestTry:", requestTry);
 
-      timeoutId = setTimeout(() => {
-        gateContractRead.off("ResultSubmitted", listener);
-        reject(new Error("Zonia result submission timed out."));
-      }, timeoutMs);
-    });
+      return new Promise<string>((resolve, reject) => {
+        const seededListener = (
+          eventRequestId: string,
+          seed: string,
+          pubKey: string,
+          submitter: string,
+        ) => {
+          if (eventRequestId.toLowerCase() === requestId?.toLowerCase()) {
+            console.log(
+              `RequestSeeded event found for requestId ${requestId}. submitter: ${submitter}`,
+            );
+
+            gateContractRead.off("RequestSeeded", seededListener);
+            resolve(seed);
+          }
+        };
+
+        const readyListener = (eventRequestId: string, seed: string) => {
+          if (eventRequestId.toLowerCase() === requestId?.toLowerCase()) {
+            console.log(`RequestReady event found for requestId ${requestId}`);
+
+            gateContractRead.off("RequestReady", readyListener);
+            resolve(seed);
+          }
+        };
+
+        const failedListener = (eventRequestId: string, result: string) => {
+          if (eventRequestId.toLowerCase() === requestId?.toLowerCase()) {
+            console.log(
+              `RequestFailed event found for requestId ${requestId}. Reason: ${result}`,
+            );
+
+            gateContractRead.off("RequestFailed", failedListener);
+            reject(
+              new Error(`RequestFailed for requestId ${requestId}: ${result}`),
+            );
+          }
+        };
+
+        const completedListener = (eventRequestId: string, result: string) => {
+          if (eventRequestId.toLowerCase() === requestId?.toLowerCase()) {
+            console.log(
+              `RequestCompleted event found for requestId ${requestId}. Result: ${result}`,
+            );
+
+            gateContractRead.off("RequestCompleted", completedListener);
+            resolve(result);
+          }
+        };
+
+        gateContractRead.on("RequestSeeded", seededListener);
+        gateContractRead.on("RequestReady", readyListener);
+        gateContractRead.on("RequestCompleted", completedListener);
+        gateContractRead.on("RequestFailed", failedListener);
+      });
+    } catch (error: any) {
+      console.error("\n--- ERRORE GENERALE IN SUBMIT ZONIA REQUEST ---");
+      console.error("Messaggio d'errore:", error.message);
+      if (error.stack) console.error("Stack trace:", error.stack);
+      console.error("Dettagli completi dell'oggetto errore:", error);
+      console.error("---------------------------------------------------\n");
+      throw error;
+    }
   };
 
   const contextValue: AuthContextType = {

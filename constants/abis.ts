@@ -3,6 +3,7 @@ import UserCompanyRegistryContractData from "./UserCompanyRegistryContractData.j
 import IndividualWalletInfoABIJson from "./IndividualWalletInfoABI.json";
 import SmartInsuranceABIJson from "./SmartInsuranceABI.json";
 import GateABIJson from "./Gate.json";
+import ZoniaTokenData from "./ZoniaToken.json";
 
 // ABI del tuo token
 export const TUL_TOKEN_ABI = TulTokenContractData.abi;
@@ -18,6 +19,8 @@ export const SMART_INSURANCE_ABI = SmartInsuranceABIJson;
 
 // ABI per l'istanza del contratto di Zonia
 export const GATE_ABI = GateABIJson.abi;
+
+export const ZONIA_TOKEN_ABI = ZoniaTokenData.abi;
 
 // Mappatura di aiuto per i valori dell'enum Solidity
 export const SolidityWalletType = {
