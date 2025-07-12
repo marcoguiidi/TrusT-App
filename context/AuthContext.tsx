@@ -1467,7 +1467,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           ],
         });
         console.log("Zonia transaction sent. Hash", submitHash);
-        console.log("qualcosa");
       } catch (providerError: any) {
         console.error("\n--- ERRORE DURANTE INVIO TRANSAZIONE AL PROVIDER ---");
         console.error("Tipo di errore:", providerError.name || "Sconosciuto");
@@ -1485,7 +1484,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           `Failed to send transaction to provider: ${providerError.message}`,
         );
       }
-      console.log("qualcuno");
 
       const receipt =
         await ethersProviderRef.current.waitForTransaction(submitHash);
@@ -1560,7 +1558,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             );
 
             gateContractRead.off("RequestSeeded", seededListener);
-            resolve(seed);
+            //resolve(seed);
           }
         };
 
@@ -1569,7 +1567,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             console.log(`RequestReady event found for requestId ${requestId}`);
 
             gateContractRead.off("RequestReady", readyListener);
-            resolve(seed);
+            //resolve(seed);
           }
         };
 
@@ -1579,7 +1577,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               `RequestFailed event found for requestId ${requestId}. Reason: ${result}`,
             );
 
-            gateContractRead.off("RequestFailed", failedListener);
+            gateContractRead.off("RequestCompleted", completedListener);
             reject(
               new Error(`RequestFailed for requestId ${requestId}: ${result}`),
             );
@@ -1592,7 +1590,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               `RequestCompleted event found for requestId ${requestId}. Result: ${result}`,
             );
 
-            gateContractRead.off("RequestCompleted", completedListener);
+            gateContractRead.off("RequestFailed", failedListener);
             resolve(result);
           }
         };
