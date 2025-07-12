@@ -1438,7 +1438,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const inputData: InputRequest = {
-        query: query,
+        query: query, //'{ "topic" : "zonia:PriceEthereum" }',
         chainParams: chainParams,
         ko: ko,
         ki: ki,
@@ -1487,7 +1487,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const receipt =
         await ethersProviderRef.current.waitForTransaction(submitHash);
-      console.log("receipt zonia", receipt);
 
       if (!receipt || receipt.status == 0) {
         console.error("\n--- ERRORE: TRANSAZIONE ZONIA REVERTITA ON-CHAIN ---");
@@ -1501,14 +1500,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         );
       }
 
-      console.log("Zonia transaction confirmed. Receipt:", receipt);
-
       let requestId: string | undefined;
 
       for (const log of receipt.logs) {
         try {
           const parsedLog = GateIface.parseLog(log);
-          console.log("DEBUG LOG:", parsedLog);
           if (
             parsedLog &&
             parsedLog.name === "RequestSubmitted" &&
@@ -1545,6 +1541,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       let requestTry = await gateContractRead.getRequest(requestId);
       console.log("requestTry:", requestTry);
 
+      const getResultQuery = async (requestIdSub: string) => {
+        return await gateContractRead.getResult(requestIdSub);
+      };
+
       return new Promise<string>((resolve, reject) => {
         const seededListener = (
           eventRequestId: string,
@@ -1554,7 +1554,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         ) => {
           if (eventRequestId.toLowerCase() === requestId?.toLowerCase()) {
             console.log(
-              `RequestSeeded event found for requestId ${requestId}. submitter: ${submitter}`,
+              `RequestSeeded event found for requestId ${requestId}. submitter: ${submitter} \nseed: ${seed}`,
             );
 
             gateContractRead.off("RequestSeeded", seededListener);
@@ -1571,16 +1571,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         };
 
-        const failedListener = (eventRequestId: string, result: string) => {
+        const failedListener = async (
+          eventRequestId: string,
+          result: string,
+        ) => {
           if (eventRequestId.toLowerCase() === requestId?.toLowerCase()) {
             console.log(
               `RequestFailed event found for requestId ${requestId}. Reason: ${result}`,
             );
 
             gateContractRead.off("RequestCompleted", completedListener);
-            reject(
-              new Error(`RequestFailed for requestId ${requestId}: ${result}`),
+            console.error(
+              `RequestFailed for requestId ${requestId}: ${result}`,
             );
+            const resultAttemp = await getResultQuery(requestId);
+            console.log("risultato della Request:", resultAttemp);
+            reject();
+            //new Error(`RequestFailed for requestId ${requestId}: ${result}`),
           }
         };
 
