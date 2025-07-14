@@ -91,10 +91,6 @@ interface AuthContextType {
     payoutAmount: string,
     tokenAddress: string,
   ) => Promise<string>;
-  addSmartInsuranceToWallet: (
-    insuranceContractAddress: string,
-    insuredWalletAddress: string,
-  ) => Promise<void>;
   getSmartInsurancesForWallet: (
     walletAddr: string,
     status: "pending" | "active" | "closed",
@@ -587,116 +583,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const registerSmartInsuranceForUser = async (
-    targetWalletAddress: string,
-    insuranceContractAddress: string,
-  ) => {
-    if (
-      !targetWalletAddress ||
-      targetWalletAddress === ethers.ZeroAddress ||
-      !insuranceContractAddress ||
-      insuranceContractAddress === ethers.ZeroAddress ||
-      !address ||
-      !wcProvider ||
-      !currentChainId ||
-      !ethersProviderRef.current ||
-      !isCoreContractsReady ||
-      !getUserCompanyRegistryContract()
-    ) {
-      console.error(
-        "Blockchain components not ready to register insurance for user.",
-      );
-      throw new Error("Blockchain components not ready.");
-    }
-
-    const registryContract = getUserCompanyRegistryContract();
-    console.log(`DEBUG: Register Smart Insurance for ${targetWalletAddress}`);
-
-    if (!registryContract) {
-      throw new Error("Registry contract not available.");
-    }
-
-    try {
-      console.log(
-        `Company ${address} attempting to register SmartInsurance ${insuranceContractAddress} for user ${targetWalletAddress}...`,
-      );
-
-      const userIndividualWalletInfoAddress =
-        await registryContract.getIndividualWalletInfoAddress(
-          targetWalletAddress,
-        );
-
-      if (userIndividualWalletInfoAddress === ethers.ZeroAddress) {
-        throw new Error(
-          `IndividualWalletInfo not found for user: ${targetWalletAddress}.`,
-        );
-      }
-
-      const userIndividualWalletInfoContract = new Contract(
-        userIndividualWalletInfoAddress,
-        INDIVIDUAL_WALLET_INFO_ABI,
-        ethersProviderRef.current,
-      );
-
-      console.log(
-        `Calling addSmartInsuranceContract on IWIC ${userIndividualWalletInfoAddress} for user ${targetWalletAddress}...`,
-      );
-
-      const userIndividualWalletInfoContractReadOnly = new Contract(
-        userIndividualWalletInfoAddress,
-        INDIVIDUAL_WALLET_INFO_ABI,
-        ethersProviderRef.current,
-      );
-
-      console.log(
-        `Calling addSmartInsuranceContract on IWIC ${userIndividualWalletInfoAddress} for user ${targetWalletAddress}...`,
-      );
-
-      const data =
-        userIndividualWalletInfoContractReadOnly.interface.encodeFunctionData(
-          "addSmartInsuranceContract",
-          [insuranceContractAddress],
-        );
-
-      const transaction = {
-        from: address,
-        to: userIndividualWalletInfoAddress,
-        data: data,
-      };
-
-      console.log(
-        "Sending transaction via wcProvider.request with eth_sendTransaction:",
-        transaction,
-      );
-
-      const txHash = await wcProvider.request({
-        method: "eth_sendTransaction",
-        params: [transaction],
-      });
-
-      console.log(
-        `Transaction to add insurance for user sent. Hash: ${txHash}`,
-      );
-
-      // @ts-ignore
-      const receipt =
-        await ethersProviderRef.current.waitForTransaction(txHash);
-      if (!receipt || receipt.status === 0) {
-        throw new Error(`AddSmartInsuranceForUser failed`);
-      }
-
-      console.log(
-        `SmartInsurance ${insuranceContractAddress} successfully added to IndividualWalletInfo of user ${targetWalletAddress}.`,
-      );
-    } catch (e: any) {
-      console.error(
-        `Error registering insurance ${insuranceContractAddress} for user ${targetWalletAddress}:`,
-        e,
-      );
-      throw e;
-    }
-  };
-
   const paySmartInsurancePremium = async (insuranceAddress: string) => {
     if (
       !insuranceAddress ||
@@ -1053,66 +939,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const addSmartInsuranceToWallet = async (
-    insuranceContractAddress: string,
-  ) => {
-    if (
-      !individualWalletInfoAddress ||
-      individualWalletInfoAddress === ethers.ZeroAddress ||
-      !address ||
-      !wcProvider ||
-      !currentChainId ||
-      !ethersProviderRef.current
-    ) {
-      console.error(
-        "IndividualWalletInfo address, wallet address, wcProvider, or currentChainId not available to add insurance.",
-      );
-      throw new Error("Blockchain components not ready.");
-    }
-    try {
-      console.log(
-        `DEBUG: Aggiunta del contratto SmartInsurance ${insuranceContractAddress} tramite wcProvider.request()...`,
-      );
-
-      const individualIface = new ethers.Interface(INDIVIDUAL_WALLET_INFO_ABI);
-      const addInsuranceData = individualIface.encodeFunctionData(
-        "addSmartInsuranceContract",
-        [insuranceContractAddress],
-      );
-
-      const addTxHash = await (
-        wcProvider as IWalletConnectEip1193Provider
-      ).request({
-        method: "eth_sendTransaction",
-        params: [
-          {
-            from: address,
-            to: individualWalletInfoAddress,
-            data: addInsuranceData,
-            chainId: `0x${currentChainId.toString(16)}`,
-          },
-        ],
-      });
-      console.log(
-        `DEBUG: Transazione addSmartInsuranceContract inviata. Hash: ${addTxHash}`,
-      );
-      const receipt =
-        await ethersProviderRef.current.waitForTransaction(addTxHash);
-      if (!receipt || !receipt.contractAddress || !receipt.status == 0) {
-        throw new Error("AddSmartInsuranceToWallet transaction failed.");
-      }
-      console.log(
-        `DEBUG: Contratto SmartInsurance ${insuranceContractAddress} aggiunto con successo!`,
-      );
-    } catch (error: any) {
-      console.error(
-        "ERRORE GLOBALE nell'aggiunta del contratto SmartInsurance:",
-        error.message || error,
-      );
-      throw error;
-    }
-  };
-
   const getWalletTypeOnChain = async (
     walletAddr?: string,
     passedProvider?: JsonRpcProvider | null,
@@ -1456,7 +1282,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const inputData: InputRequest = {
-        query: query, //'{ "topic" : "zonia:PriceEthereum" }',
+        query: '{ "topic" : "zonia:PriceEthereum" }', //query, //
         chainParams: chainParams,
         ko: ko,
         ki: ki,
@@ -1607,7 +1433,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             );
             const resultAttemp = await getResultQuery(requestId);
             console.log("risultato della Request:", resultAttemp);
-            reject();
+            resolve(result);
             //new Error(`RequestFailed for requestId ${requestId}: ${result}`),
           }
         };
@@ -1659,7 +1485,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     createSmartInsurance,
     registerWalletOnChain,
     getWalletTypeOnChain,
-    addSmartInsuranceToWallet,
     getSmartInsurancesForWallet,
     getDetailForSmartInsurance,
     getMyTokenContract,

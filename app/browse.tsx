@@ -69,6 +69,7 @@ export default function BrowseScreen() {
   const [status, setStatus] = useState<"pending" | "active" | "closed">(
     "pending",
   );
+  const [resultZonia, setResultZonia] = useState<string | undefined>("");
 
   useEffect(() => {
     setIsLoading(true);
@@ -146,9 +147,10 @@ export default function BrowseScreen() {
         1,
       );
       console.log(result);
-      return;
-    } catch (e) {
+      setResultZonia(result);
+    } catch (e: any) {
       console.error(e);
+      setResultZonia(e.toString());
     }
   };
 
@@ -303,7 +305,7 @@ export default function BrowseScreen() {
                       : "text-red-500"
                   }`}
                 >
-                  {zoniaState.toUpperCase()}
+                  {zoniaState.toUpperCase()}: {resultZonia}
                 </Text>
                 <TouchableOpacity
                   onPress={clearZoniaState}

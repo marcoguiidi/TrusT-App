@@ -90,8 +90,9 @@ contract SmartInsurance is Ownable {
 
     function executePayout() public {
         require(currentStatus == Status.Active, "Policy not active");
+        require(msg.sender == userWallet, "Only the user can require the payout");
 
-        IERC20 token = IERC20(tokenAddress);
+    IERC20 token = IERC20(tokenAddress);
         require(token.transferFrom(companyWallet, userWallet, payoutAmount), "Token transfer failed");
 
         currentStatus = Status.Claimed;

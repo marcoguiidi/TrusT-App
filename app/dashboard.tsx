@@ -65,16 +65,6 @@ export default function DashboardScreen() {
             />
             <Text className="text-2xl text-white font-bold">New Insurance</Text>
           </TouchableOpacity>
-          <TouchableOpacity className="flex-row items-center rounded-full bg-blue-500 w-[280px] h-[80px]">
-            <Image
-              source={require("../assets/images/IoT-icon.png")}
-              className="w-10 h-10 ml-5 mr-3"
-              resizeMode="contain"
-            />
-            <Text className="text-2xl text-white font-bold">
-              Zonia® Data Check
-            </Text>
-          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
@@ -135,16 +125,6 @@ export default function DashboardScreen() {
             />
             <Text className="text-2xl text-white font-bold">
               Browse Contracts
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity className="flex-row items-center rounded-full bg-green-500 w-[280px] h-[80px]">
-            <Image
-              source={require("../assets/images/IoT-icon.png")}
-              className="w-10 h-10 ml-5 mr-3"
-              resizeMode="contain"
-            />
-            <Text className="text-2xl text-white font-bold">
-              Zonia® Data Check
             </Text>
           </TouchableOpacity>
         </View>
