@@ -119,6 +119,7 @@ interface AuthContextType {
     | "pending"
     | "submitted"
     | "seeded"
+    | "ready"
     | "completed"
     | "failed"
     | null;
