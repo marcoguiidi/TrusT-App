@@ -115,6 +115,14 @@ interface AuthContextType {
     chainParams?: ChainParams,
   ) => Promise<string | undefined>;
   paySmartInsurancePayout: (insuranceAddress: string) => Promise<void>;
+  zoniaRequestState:
+    | "pending"
+    | "submitted"
+    | "seeded"
+    | "completed"
+    | "failed"
+    | null;
+  clearZoniaRequestState: () => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -133,6 +141,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [individualWalletInfoAddress, setIndividualWalletInfoAddress] =
     useState<string | null>(null);
   const [currentChainId, setCurrentChainId] = useState<number | null>(null);
+
+  const [zoniaRequestState, setZoniaRequestState] = useState<
+    "pending" | "submitted" | "seeded" | "ready" | "completed" | "failed" | null
+  >(null);
 
   const {
     isConnected,
@@ -1428,8 +1440,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         ],
       });
       console.log(`Approve transaction sent. Hash: ${approveTxHash}`);
-      await ethersProviderRef.current.waitForTransaction(approveTxHash);
+      const approveReceipt =
+        await ethersProviderRef.current.waitForTransaction(approveTxHash);
+      if (!approveReceipt || approveReceipt.status == 0) {
+        throw new Error("Approve transaction for ZT failed");
+      }
       console.log("Approval successful and confirmed.");
+      setZoniaRequestState("pending");
 
       const GateIface = new ethers.Interface(GATE_ABI);
 
@@ -1514,6 +1531,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             console.log(
               `RequestSubmitted event found. RequestId: ${requestId}`,
             );
+            setZoniaRequestState("submitted");
             break;
           }
         } catch (e) {
@@ -1538,8 +1556,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return new Promise((resolve) => setTimeout(resolve, ms));
       };
 
-      let requestTry = await gateContractRead.getRequest(requestId);
-      console.log("requestTry:", requestTry);
+      //let requestTry = await gateContractRead.getRequest(requestId);
 
       const getResultQuery = async (requestIdSub: string) => {
         return await gateContractRead.getResult(requestIdSub);
@@ -1557,6 +1574,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               `RequestSeeded event found for requestId ${requestId}. submitter: ${submitter} \nseed: ${seed}`,
             );
 
+            setZoniaRequestState("seeded");
             gateContractRead.off("RequestSeeded", seededListener);
             //resolve(seed);
           }
@@ -1566,6 +1584,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (eventRequestId.toLowerCase() === requestId?.toLowerCase()) {
             console.log(`RequestReady event found for requestId ${requestId}`);
 
+            setZoniaRequestState("ready");
             gateContractRead.off("RequestReady", readyListener);
             //resolve(seed);
           }
@@ -1580,6 +1599,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               `RequestFailed event found for requestId ${requestId}. Reason: ${result}`,
             );
 
+            setZoniaRequestState("failed");
             gateContractRead.off("RequestCompleted", completedListener);
             console.error(
               `RequestFailed for requestId ${requestId}: ${result}`,
@@ -1597,6 +1617,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               `RequestCompleted event found for requestId ${requestId}. Result: ${result}`,
             );
 
+            setZoniaRequestState("completed");
             gateContractRead.off("RequestFailed", failedListener);
             resolve(result);
           }
@@ -1615,6 +1636,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error("---------------------------------------------------\n");
       throw error;
     }
+  };
+
+  const clearZoniaRequestState = () => {
+    setZoniaRequestState(null);
   };
 
   const contextValue: AuthContextType = {
@@ -1643,6 +1668,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     paySmartInsurancePremium,
     submitZoniaRequest,
     paySmartInsurancePayout,
+    zoniaRequestState,
+    clearZoniaRequestState,
   };
 
   return (

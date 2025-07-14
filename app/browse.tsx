@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
-  // StyleSheet, // Non più necessario
   Button,
   Image,
   Alert,
@@ -15,6 +14,7 @@ import { useAuth } from "../context/AuthContext";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
+import { CheckCircle, AlertCircle, Clock } from "lucide-react-native";
 
 interface SmartInsuranceDetails {
   userWallet: string;
@@ -36,6 +36,15 @@ const StatusMap: { [key: number]: string } = {
   3: "Cancelled",
 };
 
+const zoniaStates = [
+  "pending",
+  "submitted",
+  "seeded",
+  "ready",
+  "completed",
+  "failed",
+];
+
 export default function BrowseScreen() {
   const {
     selectedAppRole,
@@ -45,6 +54,8 @@ export default function BrowseScreen() {
     paySmartInsurancePremium,
     submitZoniaRequest,
     paySmartInsurancePayout,
+    zoniaRequestState,
+    clearZoniaRequestState,
   } = useAuth();
   const router = useRouter();
 
@@ -68,6 +79,11 @@ export default function BrowseScreen() {
         setIsLoading(false);
         return;
       }
+
+      if (zoniaRequestState) {
+        return;
+      }
+
       try {
         const addresses = await getSmartInsurancesForWallet(
           walletAddress,
@@ -90,6 +106,10 @@ export default function BrowseScreen() {
     const fetchDetailInsurance = async () => {
       if (!detailedInsuranceAddress) {
         setDetails(null);
+        return;
+      }
+
+      if (zoniaRequestState) {
         return;
       }
 
@@ -202,6 +222,103 @@ export default function BrowseScreen() {
     );
   };
 
+  const ZoniaStatusModal = ({
+    zoniaState,
+    clearZoniaState,
+  }: {
+    zoniaState: string | null;
+    clearZoniaState: () => void;
+  }) => {
+    const isFinal = zoniaState === "completed" || zoniaState === "failed";
+    const currentIndex = zoniaState ? zoniaStates.indexOf(zoniaState) : -1;
+
+    const getCircleStyle = (index: number) => {
+      if (index < currentIndex) return "bg-purple-600";
+      if (index === currentIndex)
+        return "bg-purple-500 shadow-lg shadow-purple-400";
+      return "bg-gray-300";
+    };
+
+    const getLabelStyle = (index: number) => {
+      if (index === currentIndex) return "text-purple-700 font-bold";
+      if (index < currentIndex) return "text-gray-500";
+      return "text-gray-400";
+    };
+
+    return (
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={!!zoniaState}
+        onRequestClose={() => {
+          if (isFinal) {
+            clearZoniaState();
+          } else {
+            Alert.alert("Request in progress");
+          }
+        }}
+      >
+        <View className="flex-1 justify-center items-center bg-black/60">
+          <View className="m-5 bg-white rounded-2xl p-6 items-center shadow-xl w-[90%] max-h-[50%] justify-center">
+            <Text className="text-2xl font-bold mb-4 text-gray-700 text-center">
+              Request Status
+            </Text>
+
+            <View className="flex-row items-center justify-between w-full px-2">
+              {zoniaStates.slice(0, 5).map((state, index) => (
+                <View key={state} className="items-center flex-1">
+                  <View
+                    className={`w-9 h-9 rounded-full ${getCircleStyle(index)} items-center justify-center`}
+                  >
+                    {index < currentIndex ? (
+                      <CheckCircle size={20} color="white" />
+                    ) : index === currentIndex ? (
+                      <Clock size={20} color="white" />
+                    ) : (
+                      <View className="w-2.5 h-2.5 rounded-full bg-white" />
+                    )}
+                  </View>
+                  <Text className={`text-xs mt-2 ${getLabelStyle(index)}`}>
+                    {state.charAt(0).toUpperCase() + state.slice(1)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            {!isFinal && (
+              <View className="mt-6">
+                <ActivityIndicator size="large" color="#6b46c1" />
+                <Text className="text-base text-purple-700 mt-3">
+                  Processing...
+                </Text>
+              </View>
+            )}
+
+            {isFinal && (
+              <>
+                <Text
+                  className={`text-xl font-semibold mt-6 ${
+                    zoniaState === "completed"
+                      ? "text-green-600"
+                      : "text-red-500"
+                  }`}
+                >
+                  {zoniaState.toUpperCase()}
+                </Text>
+                <TouchableOpacity
+                  onPress={clearZoniaState}
+                  className="mt-6 bg-purple-500 rounded-full w-[150px] h-[45px] items-center justify-center"
+                >
+                  <Text className="text-white font-bold text-lg">Close</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   return (
     <SafeAreaView className="bg-white h-full items-center justify-start pt-8">
       <Text
@@ -268,7 +385,7 @@ export default function BrowseScreen() {
         className="h-full w-full"
         contentContainerStyle={{ alignItems: "center", paddingVertical: 20 }}
       >
-        {isLoading ? (
+        {isLoading && !zoniaRequestState ? (
           <ActivityIndicator
             size="large"
             className="mt-[30px]"
@@ -295,7 +412,7 @@ export default function BrowseScreen() {
       <Modal
         animationType="slide"
         transparent={true}
-        visible={!!detailedInsuranceAddress}
+        visible={!!detailedInsuranceAddress && !zoniaRequestState}
         onRequestClose={() => {
           setDetailedInsuranceAddress("");
           setDetails(null);
@@ -452,10 +569,11 @@ export default function BrowseScreen() {
                   // walletAddress?.toLowerCase() === details.userWallet.toLowerCase() &&
                   <TouchableOpacity
                     onPress={handleSubmitZonia}
+                    disabled={zoniaRequestState != null}
                     className={`mt-5 bg-green-500 self-center rounded-full w-[200px] h-[45px] items-center justify-center`}
                   >
                     <Text className="text-white font-bold text-lg">
-                      Check Data
+                      Check data
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -489,6 +607,11 @@ export default function BrowseScreen() {
           </View>
         </View>
       </Modal>
+
+      <ZoniaStatusModal
+        zoniaState={zoniaRequestState}
+        clearZoniaState={clearZoniaRequestState}
+      />
     </SafeAreaView>
   );
 }
