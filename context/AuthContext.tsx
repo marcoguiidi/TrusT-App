@@ -1390,7 +1390,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       };
 
       return new Promise<string>((resolve, reject) => {
-        const seededListener = (
+        const seededListener = async (
           eventRequestId: string,
           seed: string,
           pubKey: string,
@@ -1398,21 +1398,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         ) => {
           if (eventRequestId.toLowerCase() === requestId?.toLowerCase()) {
             console.log(
-              `RequestSeeded event found for requestId ${requestId}. submitter: ${submitter} \nseed: ${seed}`,
+              `EVENT RequestSeeded event found for requestId ${requestId}. submitter: ${submitter} \nseed: ${seed}`,
             );
 
             setZoniaRequestState("seeded");
-            gateContractRead.off("RequestSeeded", seededListener);
+            console.log(
+              "DEBUG seed getRequest",
+              gateContractRead.getRequest(requestId),
+            );
+            console.log(
+              "DEBUG seed getResult",
+              await getResultQuery(requestId),
+            );
+            await gateContractRead.off("RequestSeeded", seededListener);
             //resolve(seed);
           }
         };
 
-        const readyListener = (eventRequestId: string, seed: string) => {
+        const readyListener = async (eventRequestId: string, seed: string) => {
           if (eventRequestId.toLowerCase() === requestId?.toLowerCase()) {
-            console.log(`RequestReady event found for requestId ${requestId}`);
+            console.log(
+              `EVENT RequestReady event found for requestId ${requestId}`,
+            );
 
             setZoniaRequestState("ready");
-            gateContractRead.off("RequestReady", readyListener);
+            console.log(
+              "DEBUG ready getRequest",
+              gateContractRead.getRequest(requestId),
+            );
+            console.log(
+              "DEBUG ready getResult",
+              await getResultQuery(requestId),
+            );
+            await gateContractRead.off("RequestReady", readyListener);
             //resolve(seed);
           }
         };
@@ -1423,11 +1441,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         ) => {
           if (eventRequestId.toLowerCase() === requestId?.toLowerCase()) {
             console.log(
-              `RequestFailed event found for requestId ${requestId}. Reason: ${result}`,
+              `EVENT RequestFailed event found for requestId ${eventRequestId}. Reason: ${result}`,
             );
 
             setZoniaRequestState("failed");
-            gateContractRead.off("RequestCompleted", completedListener);
+            await gateContractRead.off("RequestCompleted", completedListener);
             console.error(
               `RequestFailed for requestId ${requestId}: ${result}`,
             );
@@ -1438,14 +1456,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         };
 
-        const completedListener = (eventRequestId: string, result: string) => {
+        const completedListener = async (
+          eventRequestId: string,
+          result: string,
+        ) => {
           if (eventRequestId.toLowerCase() === requestId?.toLowerCase()) {
             console.log(
-              `RequestCompleted event found for requestId ${requestId}. Result: ${result}`,
+              `EVENT RequestCompleted event found for requestId ${eventRequestId}. Result: ${result}`,
             );
 
             setZoniaRequestState("completed");
-            gateContractRead.off("RequestFailed", failedListener);
+            await gateContractRead.off("RequestFailed", failedListener);
+            console.log(
+              "DEBUG completed getResult",
+              await getResultQuery(eventRequestId),
+            );
             resolve(result);
           }
         };
