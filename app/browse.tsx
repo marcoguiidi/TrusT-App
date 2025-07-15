@@ -581,7 +581,6 @@ export default function BrowseScreen() {
                 <View key={state} className="flex-row items-center mb-2">
                   <View
                     className={`w-4 h-4 rounded-full mr-3 ${getCircleStyle(index)}`}
-                    key={index}
                   />
                   <Text className={`text-base ${getLabelStyle(index)}`}>
                     {state.charAt(0).toUpperCase() + state.slice(1)}
