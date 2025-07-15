@@ -593,8 +593,9 @@ export default function BrowseScreen() {
             {zoniaRequestState === "completed" &&
               resultZonia &&
               details &&
-              parseFloat(resultZonia) >= details?.target_value &&
-              walletAddress == details?.userWallet && (
+              walletAddress?.toLowerCase() ===
+                details.userWallet.toLowerCase() &&
+              parseFloat(resultZonia) >= parseFloat(details?.target_value) && (
                 <TouchableOpacity
                   onPress={handleRequestPayout}
                   className={`mt-5 bg-green-500 self-center rounded-full w-[200px] h-[45px] items-center justify-center`}
