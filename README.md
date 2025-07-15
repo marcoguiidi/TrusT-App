@@ -35,4 +35,4 @@ For blockchain interaction, ensure your contract addresses and ABI files are cor
 
 ## Further Information
 
-* [Full Documentation](documentation/doc.pdf)
+* [Full Documentation](documentation/full_documentation.pdf)

@@ -510,18 +510,6 @@ export default function BrowseScreen() {
                     </Text>
                   </TouchableOpacity>
                 )}
-                {details.currentStatus === 1 &&
-                  walletAddress?.toLowerCase() ===
-                    details.userWallet.toLowerCase() && (
-                    <TouchableOpacity
-                      onPress={handleRequestPayout}
-                      className={`mt-5 bg-green-500 self-center rounded-full w-[200px] h-[45px] items-center justify-center`}
-                    >
-                      <Text className="text-white font-bold text-lg">
-                        Request Payout
-                      </Text>
-                    </TouchableOpacity>
-                  )}
               </ScrollView>
             ) : (
               <Text className="text-base text-gray-600 mb-5">
@@ -601,6 +589,21 @@ export default function BrowseScreen() {
                 </ScrollView>
               </View>
             )}
+
+            {zoniaRequestState === "completed" &&
+              resultZonia &&
+              details &&
+              parseFloat(resultZonia) >= details?.target_value &&
+              walletAddress == details?.userWallet && (
+                <TouchableOpacity
+                  onPress={handleRequestPayout}
+                  className={`mt-5 bg-green-500 self-center rounded-full w-[200px] h-[45px] items-center justify-center`}
+                >
+                  <Text className="text-white font-bold text-lg">
+                    Request Payout
+                  </Text>
+                </TouchableOpacity>
+              )}
 
             {(zoniaRequestState === "completed" ||
               zoniaRequestState === "failed") &&
