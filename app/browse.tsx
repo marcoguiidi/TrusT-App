@@ -14,7 +14,7 @@ import { useAuth } from "../context/AuthContext";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
-import { CheckCircle, AlertCircle, Clock } from "lucide-react-native";
+import { AlertCircle, CheckCircle, Clock } from "lucide-react-native";
 
 interface SmartInsuranceDetails {
   userWallet: string;
@@ -70,10 +70,13 @@ export default function BrowseScreen() {
     "pending",
   );
   const [resultZonia, setResultZonia] = useState<string | undefined>("");
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showZoniaModal, setShowZoniaModal] = useState(
     zoniaRequestState != null,
   );
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const currentIndex = zoniaRequestState
+    ? zoniaStates.indexOf(zoniaRequestState)
+    : -1;
 
   useEffect(() => {
     setIsLoading(true);
@@ -95,7 +98,6 @@ export default function BrowseScreen() {
           status,
         );
         setInsuranceAddresses(addresses);
-        console.log(`Smart insurances ottenute: ${addresses.length}`);
       } catch (e) {
         console.error("Error fetching smart insurances:", e);
         setInsuranceAddresses([]);
@@ -137,6 +139,13 @@ export default function BrowseScreen() {
     fetchDetailInsurance();
   }, [detailedInsuranceAddress, getDetailForSmartInsurance, key]);
 
+  useEffect(() => {
+    if (zoniaRequestState != null) {
+      setShowDetailsModal(false);
+      setShowZoniaModal(true);
+    }
+  }, [zoniaRequestState]);
+
   const copyToClipboard = async (text: string) => {
     await Clipboard.setStringAsync(text);
     Alert.alert("Copied!", "Address copied to clipboard.");
@@ -144,8 +153,6 @@ export default function BrowseScreen() {
 
   const handleSubmitZonia = async () => {
     try {
-      setShowDetailsModal(false);
-      setShowZoniaModal(true);
       const result = await submitZoniaRequest(
         detailedInsuranceAddress,
         1,
@@ -154,6 +161,7 @@ export default function BrowseScreen() {
       );
       console.log("prova aaaaaaaaa", result);
       setResultZonia(result);
+      console.log("prova bbbbbbb", resultZonia);
     } catch (e: any) {
       console.error("lalalalalala", e);
       setResultZonia(e.toString());
@@ -203,6 +211,19 @@ export default function BrowseScreen() {
     }
   };
 
+  const getCircleStyle = (index: number) => {
+    if (index < currentIndex) return "bg-purple-600";
+    if (index === currentIndex)
+      return "bg-purple-500 shadow-lg shadow-purple-400";
+    return "bg-gray-300";
+  };
+
+  const getLabelStyle = (index: number) => {
+    if (index === currentIndex) return "text-purple-700 font-bold";
+    if (index < currentIndex) return "text-gray-500";
+    return "text-gray-400";
+  };
+
   const CardView = ({ address }: { address: string }) => {
     return (
       <TouchableOpacity
@@ -228,108 +249,6 @@ export default function BrowseScreen() {
           </Text>
         </View>
       </TouchableOpacity>
-    );
-  };
-
-  const ZoniaStatusModal = ({
-    zoniaState,
-    clearZoniaState,
-  }: {
-    zoniaState: string | null;
-    clearZoniaState: () => void;
-  }) => {
-    const isFinal = zoniaState === "completed" || zoniaState === "failed";
-    const currentIndex = zoniaState ? zoniaStates.indexOf(zoniaState) : -1;
-
-    const getCircleStyle = (index: number) => {
-      if (index < currentIndex) return "bg-purple-600";
-      if (index === currentIndex)
-        return "bg-purple-500 shadow-lg shadow-purple-400";
-      return "bg-gray-300";
-    };
-
-    const getLabelStyle = (index: number) => {
-      if (index === currentIndex) return "text-purple-700 font-bold";
-      if (index < currentIndex) return "text-gray-500";
-      return "text-gray-400";
-    };
-
-    return (
-      <Modal animationType="fade" transparent={true} visible={showZoniaModal}>
-        <View className="flex-1 justify-center items-center bg-black/60">
-          <View className="m-5 bg-white rounded-2xl p-6 items-center shadow-xl w-[90%] max-h-[50%] justify-center">
-            <Text className="text-2xl font-bold mb-4">
-              Zonia Request Status
-            </Text>
-
-            {resultZonia && zoniaState === "completed" && (
-              <View className="flex-row items-center justify-center mb-4">
-                <CheckCircle size={30} color="green" />
-                <Text className="text-xl text-green-600 font-bold ml-2">
-                  Success!
-                </Text>
-              </View>
-            )}
-
-            {resultZonia && zoniaState === "failed" && (
-              <View className="flex-row items-center justify-center mb-4">
-                <AlertCircle size={30} color="red" />
-                <Text className="text-xl text-red-600 font-bold ml-2">
-                  Failed!
-                </Text>
-              </View>
-            )}
-
-            {!resultZonia && (
-              <View className="flex-row items-center justify-center mb-4">
-                <Clock size={30} color="orange" />
-                <Text className="text-xl text-orange-600 font-bold ml-2">
-                  Processing...
-                </Text>
-              </View>
-            )}
-
-            <View className="w-full mb-6">
-              {zoniaStates.map((state, index) => (
-                <View key={state} className="flex-row items-center mb-2">
-                  <View
-                    className={`w-4 h-4 rounded-full mr-3 ${getCircleStyle(
-                      index,
-                    )}`}
-                  />
-                  <Text className={`text-lg ${getLabelStyle(index)}`}>
-                    {state.charAt(0).toUpperCase() + state.slice(1)}
-                  </Text>
-                </View>
-              ))}
-            </View>
-
-            {resultZonia && (
-              <View className="w-full bg-gray-100 p-4 rounded-lg mb-4">
-                <Text className="font-bold text-gray-700 mb-2">Result:</Text>
-                <ScrollView className="max-h-[100px]">
-                  <Text className="text-gray-600 break-words">
-                    {resultZonia}
-                  </Text>
-                </ScrollView>
-              </View>
-            )}
-
-            {isFinal && (
-              <Button
-                title="Close"
-                onPress={() => {
-                  setShowZoniaModal(false);
-                  clearZoniaState();
-                  setResultZonia("");
-                  setKey((prev) => prev + 1);
-                }}
-                color="#6b46c1"
-              />
-            )}
-          </View>
-        </View>
-      </Modal>
     );
   };
 
@@ -584,7 +503,6 @@ export default function BrowseScreen() {
                   // walletAddress?.toLowerCase() === details.userWallet.toLowerCase() &&
                   <TouchableOpacity
                     onPress={handleSubmitZonia}
-                    disabled={zoniaRequestState != null}
                     className={`mt-5 bg-green-500 self-center rounded-full w-[200px] h-[45px] items-center justify-center`}
                   >
                     <Text className="text-white font-bold text-lg">
@@ -624,10 +542,85 @@ export default function BrowseScreen() {
         </View>
       </Modal>
 
-      <ZoniaStatusModal
-        zoniaState={zoniaRequestState}
-        clearZoniaState={clearZoniaRequestState}
-      />
+      <Modal animationType="fade" transparent={true} visible={showZoniaModal}>
+        <View className="flex-1 justify-center items-center bg-black/60">
+          <View className="m-4 bg-white rounded-3xl p-8 items-center shadow-2xl shadow-gray-400 w-[95%] max-w-[400px] justify-center">
+            <Text className="text-3xl font-extrabold text-indigo-800 mb-6 text-center">
+              Zonia Status
+            </Text>
+
+            {resultZonia && zoniaRequestState === "completed" && (
+              <View className="flex-row items-center justify-center mb-6">
+                <CheckCircle size={36} color="#28a745" />
+                <Text className="text-2xl text-green-700 font-bold ml-3">
+                  Success!
+                </Text>
+              </View>
+            )}
+
+            {resultZonia && zoniaRequestState === "failed" && (
+              <View className="flex-row items-center justify-center mb-6">
+                <AlertCircle size={36} color="#dc3545" />
+                <Text className="text-2xl text-red-700 font-bold ml-3">
+                  Failed!
+                </Text>
+              </View>
+            )}
+
+            {!resultZonia && (
+              <View className="flex-row items-center justify-center mb-6">
+                <Clock size={36} color="#ffc107" />
+                <Text className="text-2xl text-orange-600 font-bold ml-3">
+                  Processing ...
+                </Text>
+              </View>
+            )}
+
+            <View className="w-full mb-8 border-t border-b border-gray-200 py-4">
+              {zoniaStates.map((state, index) => (
+                <View key={state} className="flex-row items-center mb-2">
+                  <View
+                    className={`w-4 h-4 rounded-full mr-3 ${getCircleStyle(index)}`}
+                    key={index}
+                  />
+                  <Text className={`text-base ${getLabelStyle(index)}`}>
+                    {state.charAt(0).toUpperCase() + state.slice(1)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            {resultZonia && (
+              <View className="w-full bg-gray-50 p-4 rounded-lg mb-6 border border-gray-200">
+                <Text className="font-bold text-gray-800 text-lg mb-2">
+                  Result:
+                </Text>
+                <ScrollView className="max-h-[120px]">
+                  <Text className="text-gray-600 text-sm break-words leading-5">
+                    {resultZonia}
+                  </Text>
+                </ScrollView>
+              </View>
+            )}
+
+            {(zoniaRequestState === "completed" ||
+              zoniaRequestState === "failed") &&
+              resultZonia && (
+                <TouchableOpacity
+                  onPress={() => {
+                    clearZoniaRequestState();
+                    setShowDetailsModal(true);
+                    setShowZoniaModal(false);
+                    setResultZonia(undefined);
+                  }}
+                  className="mt-4 bg-purple-600 px-6 py-3 rounded-full shadow-md shadow-purple-400"
+                >
+                  <Text className="text-white font-bold text-lg">Close</Text>
+                </TouchableOpacity>
+              )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

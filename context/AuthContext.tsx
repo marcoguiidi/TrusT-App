@@ -1383,8 +1383,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return new Promise((resolve) => setTimeout(resolve, ms));
       };
 
-      //let requestTry = await gateContractRead.getRequest(requestId);
-
       const getResultQuery = async (requestIdSub: string) => {
         return await gateContractRead.getResult(requestIdSub);
       };
@@ -1411,7 +1409,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               await getResultQuery(requestId),
             );
             await gateContractRead.off("RequestSeeded", seededListener);
-            //resolve(seed);
+            // resolve(seed);
           }
         };
 
@@ -1452,7 +1450,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const resultAttemp = await getResultQuery(requestId);
             console.log("risultato della Request:", resultAttemp);
             resolve(result);
-            //new Error(`RequestFailed for requestId ${requestId}: ${result}`),
           }
         };
 

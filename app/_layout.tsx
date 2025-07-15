@@ -30,7 +30,6 @@ function RootLayoutContent() {
     <Stack>
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="dashboard" options={{ headerShown: false }} />
-      <Stack.Screen name="settings" options={{ headerShown: false }} />
       <Stack.Screen name="browse" options={{ headerShown: false }} />
       <Stack.Screen name="create" options={{ headerShown: false }} />
     </Stack>
