@@ -595,7 +595,8 @@ export default function BrowseScreen() {
               details &&
               walletAddress?.toLowerCase() ===
                 details.userWallet.toLowerCase() &&
-              parseFloat(resultZonia) >= parseFloat(details?.target_value) && (
+              parseFloat(resultZonia) >=
+                parseFloat(details?.target_value.toString()) && (
                 <TouchableOpacity
                   onPress={handleRequestPayout}
                   className={`mt-5 bg-green-500 self-center rounded-full w-[200px] h-[45px] items-center justify-center`}
