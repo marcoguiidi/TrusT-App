@@ -85,7 +85,7 @@ interface AuthContextType {
     insuredWalletAddress: string,
     query: string,
     sensor: string,
-    target_value: number,
+    target_value: bigint,
     geoloc: string,
     premiumAmount: string,
     payoutAmount: string,
@@ -703,7 +703,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     insuredWalletAddress: string,
     query: string,
     sensor: string,
-    target_value: number,
+    target_value: bigint,
     geoloc: string,
     premiumAmount: string,
     payoutAmount: string,
@@ -1389,7 +1389,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return await gateContractRead.getResult(requestIdSub);
       };
 
-      return new Promise<string>((resolve, reject) => {
+      const finalResult = await new Promise<string>((resolve, reject) => {
         const seededListener = async (
           eventRequestId: string,
           seed: string,
@@ -1446,8 +1446,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
             setZoniaRequestState("failed");
             await gateContractRead.off("RequestCompleted", completedListener);
-            console.error(
-              `RequestFailed for requestId ${requestId}: ${result}`,
+            console.log(
+              `FAILED RequestFailed for requestId ${requestId}: ${result}`,
             );
             const resultAttemp = await getResultQuery(requestId);
             console.log("risultato della Request:", resultAttemp);
@@ -1480,6 +1480,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         gateContractRead.on("RequestCompleted", completedListener);
         gateContractRead.on("RequestFailed", failedListener);
       });
+      console.log("final result", finalResult);
+      return finalResult;
     } catch (error: any) {
       console.error("\n--- ERRORE GENERALE IN SUBMIT ZONIA REQUEST ---");
       console.error("Messaggio d'errore:", error.message);

@@ -70,6 +70,10 @@ export default function BrowseScreen() {
     "pending",
   );
   const [resultZonia, setResultZonia] = useState<string | undefined>("");
+  const [showZoniaModal, setShowZoniaModal] = useState(
+    zoniaRequestState != null,
+  );
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   useEffect(() => {
     setIsLoading(true);
@@ -140,16 +144,18 @@ export default function BrowseScreen() {
 
   const handleSubmitZonia = async () => {
     try {
+      setShowDetailsModal(false);
+      setShowZoniaModal(true);
       const result = await submitZoniaRequest(
         detailedInsuranceAddress,
         1,
         1,
-        1,
+        10,
       );
-      console.log(result);
+      console.log("prova aaaaaaaaa", result);
       setResultZonia(result);
     } catch (e: any) {
-      console.error(e);
+      console.error("lalalalalala", e);
       setResultZonia(e.toString());
     }
   };
@@ -202,6 +208,7 @@ export default function BrowseScreen() {
       <TouchableOpacity
         onPress={() => {
           setDetailedInsuranceAddress(address);
+          setShowDetailsModal(true);
         }}
       >
         <View
@@ -248,72 +255,77 @@ export default function BrowseScreen() {
     };
 
     return (
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={!!zoniaState}
-        onRequestClose={() => {
-          if (isFinal) {
-            clearZoniaState();
-          } else {
-            Alert.alert("Request in progress");
-          }
-        }}
-      >
+      <Modal animationType="fade" transparent={true} visible={showZoniaModal}>
         <View className="flex-1 justify-center items-center bg-black/60">
           <View className="m-5 bg-white rounded-2xl p-6 items-center shadow-xl w-[90%] max-h-[50%] justify-center">
-            <Text className="text-2xl font-bold mb-4 text-gray-700 text-center">
-              Request Status
+            <Text className="text-2xl font-bold mb-4">
+              Zonia Request Status
             </Text>
 
-            <View className="flex-row items-center justify-between w-full px-2">
-              {zoniaStates.slice(0, 5).map((state, index) => (
-                <View key={state} className="items-center flex-1">
+            {resultZonia && zoniaState === "completed" && (
+              <View className="flex-row items-center justify-center mb-4">
+                <CheckCircle size={30} color="green" />
+                <Text className="text-xl text-green-600 font-bold ml-2">
+                  Success!
+                </Text>
+              </View>
+            )}
+
+            {resultZonia && zoniaState === "failed" && (
+              <View className="flex-row items-center justify-center mb-4">
+                <AlertCircle size={30} color="red" />
+                <Text className="text-xl text-red-600 font-bold ml-2">
+                  Failed!
+                </Text>
+              </View>
+            )}
+
+            {!resultZonia && (
+              <View className="flex-row items-center justify-center mb-4">
+                <Clock size={30} color="orange" />
+                <Text className="text-xl text-orange-600 font-bold ml-2">
+                  Processing...
+                </Text>
+              </View>
+            )}
+
+            <View className="w-full mb-6">
+              {zoniaStates.map((state, index) => (
+                <View key={state} className="flex-row items-center mb-2">
                   <View
-                    className={`w-9 h-9 rounded-full ${getCircleStyle(index)} items-center justify-center`}
-                  >
-                    {index < currentIndex ? (
-                      <CheckCircle size={20} color="white" />
-                    ) : index === currentIndex ? (
-                      <Clock size={20} color="white" />
-                    ) : (
-                      <View className="w-2.5 h-2.5 rounded-full bg-white" />
-                    )}
-                  </View>
-                  <Text className={`text-xs mt-2 ${getLabelStyle(index)}`}>
+                    className={`w-4 h-4 rounded-full mr-3 ${getCircleStyle(
+                      index,
+                    )}`}
+                  />
+                  <Text className={`text-lg ${getLabelStyle(index)}`}>
                     {state.charAt(0).toUpperCase() + state.slice(1)}
                   </Text>
                 </View>
               ))}
             </View>
 
-            {!isFinal && (
-              <View className="mt-6">
-                <ActivityIndicator size="large" color="#6b46c1" />
-                <Text className="text-base text-purple-700 mt-3">
-                  Processing...
-                </Text>
+            {resultZonia && (
+              <View className="w-full bg-gray-100 p-4 rounded-lg mb-4">
+                <Text className="font-bold text-gray-700 mb-2">Result:</Text>
+                <ScrollView className="max-h-[100px]">
+                  <Text className="text-gray-600 break-words">
+                    {resultZonia}
+                  </Text>
+                </ScrollView>
               </View>
             )}
 
             {isFinal && (
-              <>
-                <Text
-                  className={`text-xl font-semibold mt-6 ${
-                    zoniaState === "completed"
-                      ? "text-green-600"
-                      : "text-red-500"
-                  }`}
-                >
-                  {zoniaState.toUpperCase()}: {resultZonia}
-                </Text>
-                <TouchableOpacity
-                  onPress={clearZoniaState}
-                  className="mt-6 bg-purple-500 rounded-full w-[150px] h-[45px] items-center justify-center"
-                >
-                  <Text className="text-white font-bold text-lg">Close</Text>
-                </TouchableOpacity>
-              </>
+              <Button
+                title="Close"
+                onPress={() => {
+                  setShowZoniaModal(false);
+                  clearZoniaState();
+                  setResultZonia("");
+                  setKey((prev) => prev + 1);
+                }}
+                color="#6b46c1"
+              />
             )}
           </View>
         </View>
@@ -414,10 +426,11 @@ export default function BrowseScreen() {
       <Modal
         animationType="slide"
         transparent={true}
-        visible={!!detailedInsuranceAddress && !zoniaRequestState}
+        visible={showDetailsModal}
         onRequestClose={() => {
           setDetailedInsuranceAddress("");
           setDetails(null);
+          setShowDetailsModal(false);
         }}
       >
         <View className="flex-1 justify-center items-center bg-black/60">
@@ -603,6 +616,7 @@ export default function BrowseScreen() {
               onPress={() => {
                 setDetailedInsuranceAddress("");
                 setDetails(null);
+                setShowDetailsModal(false);
               }}
               color="#6b46c1"
             />
