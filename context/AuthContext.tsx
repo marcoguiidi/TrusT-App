@@ -173,7 +173,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const initEthers = async () => {
       console.log("initEthers iniziato");
-      // Resetta tutti gli stati e riferimenti all'inizio
       setIsCoreContractsReady(false);
       setWalletConnected(false);
       userCompanyRegistryContractRef.current = null;
@@ -216,8 +215,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         );
 
         const network = await localProvider.getNetwork();
-        localChainId = Number(network.chainId); // Usa una variabile locale
-        setCurrentChainId(localChainId); // Aggiorna lo stato per React e altri componenti
+        localChainId = Number(network.chainId);
+        setCurrentChainId(localChainId);
         console.log(
           `Provider Network: ${network.name} (Chain ID: ${localChainId})`,
         );
@@ -271,16 +270,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           );
           setIsCoreContractsReady(false);
           userCompanyRegistryContractRef.current = null;
-          // Se il registry non è pronto, non possiamo procedere con la verifica del tipo di wallet
           return;
         }
 
-        // --- Chiamata a getWalletTypeOnChain con le dipendenze locali GIA' PRONTE ---
-        // NON c'è più bisogno del while loop con setTimeout qui,
-        // perché stiamo passando le variabili locali 'localProvider' e 'localRegistryContract'
-        // che sono garantite essere state inizializzate nelle righe precedenti.
         if (localRegistryContract && localProvider) {
-          // Doppio controllo, ma le variabili dovrebbero essere pronte
           let infoContractAddress =
             await localRegistryContract.getIndividualWalletInfoAddress(address);
 
@@ -296,23 +289,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const individualContract = new Contract(
               infoContractAddress,
               INDIVIDUAL_WALLET_INFO_ABI,
-              localProvider, // Usa il provider locale qui
+              localProvider,
             );
             individualWalletInfoContractRef.current = individualContract;
             console.log(
               `IndividualWalletInfo found for ${address} at: ${infoContractAddress}`,
             );
 
-            // Passa esplicitamente localProvider e localRegistryContract (ora garantiti)
             const typeOnChain = await getWalletTypeOnChain(
               address,
               localProvider,
               localRegistryContract,
             );
-            // *** NUOVA RIGA: Imposta selectedAppRole in base a walletTypeOnChain ***
             if (typeOnChain) {
               setSelectedAppRole(typeOnChain);
-              // Salva anche in AsyncStorage per persistenza del ruolo selezionato dall'app
               await AsyncStorage.setItem("selectedAppRole", typeOnChain);
             }
           } else {
@@ -410,10 +400,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (
       !address ||
       !wcProvider ||
-      !isCoreContractsReady || // Dipende dallo stato, che sarà aggiornato dal useEffect
+      !isCoreContractsReady ||
       !USER_COMPANY_REGISTRY_ADDRESS_CURRENT ||
-      currentChainId === null || // Dipende dallo stato
-      !ethersProviderRef.current // Dipende dal ref
+      currentChainId === null ||
+      !ethersProviderRef.current
     ) {
       console.error(
         "Blockchain components not ready for transaction. Check wallet address, wcProvider, currentChainId, or ethersProvider.",
@@ -980,7 +970,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const individualContractForRead = new Contract(
         infoContractAddress,
         INDIVIDUAL_WALLET_INFO_ABI,
-        provider, // Usa il provider che è stato determinato come valido
+        provider,
       );
       individualWalletInfoContractRef.current = individualContractForRead;
 
