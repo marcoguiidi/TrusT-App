@@ -611,18 +611,20 @@ export default function BrowseScreen() {
               ))}
             </View>
 
-            {resultZonia && (
-              <View className="w-full bg-gray-50 p-4 rounded-lg mb-6 border border-gray-200">
-                <Text className="font-bold text-gray-800 text-lg mb-2">
-                  Result:
-                </Text>
-                <ScrollView className="max-h-[120px]">
-                  <Text className="text-gray-600 text-sm break-words leading-5">
-                    {resultZonia}
+            {resultZonia &&
+              (zoniaRequestState === "failed" ||
+                zoniaRequestState === "completed") && (
+                <View className="w-full bg-gray-50 p-4 rounded-lg mb-6 border border-gray-200">
+                  <Text className="font-bold text-gray-800 text-lg mb-2">
+                    Result:
                   </Text>
-                </ScrollView>
-              </View>
-            )}
+                  <ScrollView className="max-h-[120px]">
+                    <Text className="text-gray-600 text-sm break-words leading-5">
+                      {resultZonia}
+                    </Text>
+                  </ScrollView>
+                </View>
+              )}
 
             {zoniaRequestState === "completed" &&
               resultZonia &&

@@ -1294,6 +1294,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       );
       const query = await smartInsuranceContractRead.query();
 
+      const zoniaTokenContract = new Contract(
+        chainIdToContractAddresses[currentChainId]?.zoniaToken,
+        ZONIA_TOKEN_ABI,
+        ethersProviderRef.current,
+      );
+
+      console.log(
+        "zonia token balance for wallet:",
+        ethers.formatUnits(await zoniaTokenContract.balanceOf(address), 18),
+      );
+
       const zoniaTokenIface = new ethers.Interface(ZONIA_TOKEN_ABI);
 
       console.log(
@@ -1302,7 +1313,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const approveData = zoniaTokenIface.encodeFunctionData("approve", [
         chainIdToContractAddresses[currentChainId].zoniaContract,
-        fee,
+        ethers.parseUnits(fee.toString(), 18),
       ]);
 
       const approveTxHash = await (
@@ -1334,7 +1345,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const inputData: InputRequest = {
-        query: '{ "topic" : "zonia:PriceEthereum" }', //query, //
+        query: '{ "topic" : "zonia:PriceEthereum" }', //query, //, //query, //
         chainParams: chainParams,
         ko: ko,
         ki: ki,
