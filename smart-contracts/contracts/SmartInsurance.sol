@@ -92,7 +92,7 @@ contract SmartInsurance is Ownable {
         require(currentStatus == Status.Active, "Policy not active");
         require(msg.sender == userWallet, "Only the user can require the payout");
 
-    IERC20 token = IERC20(tokenAddress);
+        IERC20 token = IERC20(tokenAddress);
         require(token.transferFrom(companyWallet, userWallet, payoutAmount), "Token transfer failed");
 
         currentStatus = Status.Claimed;
@@ -103,8 +103,8 @@ contract SmartInsurance is Ownable {
         IndividualWalletInfo(companyIndividualWalletInfo).updateSmartInsuranceStatus(address(this));
     }
 
-    function cancelPolicy() public onlyOwner {
-        require(currentStatus == Status.Pending || currentStatus == Status.Active, "Policy cannot be cancelled in current status");
+    function cancelPolicy() public {
+        require(currentStatus == Status.Pending, "Policy cannot be cancelled in current status");
         currentStatus = Status.Cancelled;
         emit PolicyCancelled();
         emit StatusChanged(Status.Cancelled);

@@ -111,6 +111,7 @@ interface AuthContextType {
     chainParams?: ChainParams,
   ) => Promise<string | undefined>;
   paySmartInsurancePayout: (insuranceAddress: string) => Promise<void>;
+  cancelPolicy: (insuranceAddress: string) => Promise<void>;
   zoniaRequestState:
     | "pending"
     | "submitted"
@@ -929,6 +930,67 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const cancelPolicy = async (insuranceAddress: string) => {
+    if (
+      !insuranceAddress ||
+      insuranceAddress === ethers.ZeroAddress ||
+      !address ||
+      !wcProvider ||
+      !currentChainId ||
+      !ethersProviderRef.current ||
+      !isCoreContractsReady
+    ) {
+      console.error(
+        "Blockchain components not ready: check insuranceAddress, current wallet address, wcProvider, currentChainId, ethersProvider, or core contracts status.",
+      );
+      throw new Error("Blockchain components not ready to pay premium.");
+    }
+
+    try {
+      console.log("Attemping to cancel SmartInsurante at", insuranceAddress);
+
+      const smartInsuranceIface = new ethers.Interface(SMART_INSURANCE_ABI);
+
+      const cancelData = smartInsuranceIface.encodeFunctionData(
+        "cancelPolicy",
+        [],
+      );
+
+      const cancelTxHash = await (
+        wcProvider as IWalletConnectEip1193Provider
+      ).request({
+        method: "eth_sendTransaction",
+        params: [
+          {
+            from: address,
+            to: insuranceAddress,
+            data: cancelData,
+            chainId: `0x${currentChainId.toString(16)}`,
+          },
+        ],
+      });
+
+      console.log(`CancelPolicy transaction sent. Hash: ${cancelTxHash}`);
+      const receipt =
+        await ethersProviderRef.current.waitForTransaction(cancelTxHash);
+
+      if (!receipt || receipt.status == 0) {
+        throw new Error("cancelPolicy transaction failed.");
+      }
+
+      console.log("Insurance successfully cancelled");
+    } catch (e: any) {
+      console.error("Error cancelling smart insurance:", e);
+      if (e.reason) console.error("Revert reason:", e.reason);
+      if (e.code === "UNPREDICTABLE_GAS_LIMIT") {
+        console.error(
+          "Potrebbe esserci un errore di revert nel contratto o insufficienza di fondi per il gas.",
+        );
+      }
+      throw e;
+    }
+  };
+
   const getWalletTypeOnChain = async (
     walletAddr?: string,
     passedProvider?: JsonRpcProvider | null,
@@ -1510,6 +1572,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     paySmartInsurancePayout,
     zoniaRequestState,
     clearZoniaRequestState,
+    cancelPolicy,
   };
 
   return (

@@ -56,6 +56,7 @@ export default function BrowseScreen() {
     paySmartInsurancePayout,
     zoniaRequestState,
     clearZoniaRequestState,
+    cancelPolicy,
   } = useAuth();
   const router = useRouter();
 
@@ -165,6 +166,29 @@ export default function BrowseScreen() {
     } catch (e: any) {
       console.error("lalalalalala", e);
       setResultZonia(e.toString());
+    }
+  };
+
+  const handleCancelPolicy = async () => {
+    if (!detailedInsuranceAddress || !details) {
+      return;
+    }
+    if (details.currentStatus !== 0) {
+      Alert.alert(
+        "Status not valid",
+        `Actual state: ${StatusMap[details.currentStatus]}.`,
+      );
+      return;
+    }
+
+    try {
+      await cancelPolicy(detailedInsuranceAddress);
+      Alert.alert("Success", "The insurance is cancelled.");
+
+      setKey((prev) => prev + 1);
+    } catch (e: any) {
+      console.error("Error:", e);
+      Alert.alert("Error", `${e.message || "Unknown error"}`);
     }
   };
 
@@ -499,6 +523,16 @@ export default function BrowseScreen() {
                       )}
                     </TouchableOpacity>
                   )}
+                {details.currentStatus === 0 && (
+                  <TouchableOpacity
+                    onPress={handleCancelPolicy}
+                    className={`mt-5 bg-red-500 self-center rounded-full w-[200px] h-[45px] items-center justify-center ${isPayingPremium ? "opacity-50" : ""}`}
+                  >
+                    <Text className="text-white font-bold text-lg">
+                      Cancel Policy
+                    </Text>
+                  </TouchableOpacity>
+                )}
                 {details.currentStatus === 1 && (
                   // walletAddress?.toLowerCase() === details.userWallet.toLowerCase() &&
                   <TouchableOpacity
