@@ -2,59 +2,76 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "_userWallet",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "_companyWallet",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_premiumAmount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "string",
-        "name": "_query",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "_sensor",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_target_value",
-        "type": "uint256"
-      },
-      {
-        "internalType": "string",
-        "name": "_geoloc",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_payoutAmount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address",
-        "name": "_tokenAddress",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "_userIndividualWalletInfo",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "_companyIndividualWalletInfo",
-        "type": "address"
+        "components": [
+          {
+            "internalType": "address",
+            "name": "userWallet",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "companyWallet",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "premiumAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "query",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "sensor",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "target_value",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "geoloc",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "payoutAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "tokenAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "userIndividualWalletInfo",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "companyIndividualWalletInfo",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "zoniaGateAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "zoniaTokenAddress",
+            "type": "address"
+          }
+        ],
+        "internalType": "struct InsuranceInitParams",
+        "name": "params",
+        "type": "tuple"
       }
     ],
     "stateMutability": "nonpayable",
@@ -190,8 +207,44 @@
     "type": "event"
   },
   {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "RequestId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "ZoniaRequestSubmitted",
+    "type": "event"
+  },
+  {
     "inputs": [],
     "name": "cancelPolicy",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "ko",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "ki",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "fee",
+        "type": "uint256"
+      }
+    ],
+    "name": "checkZoniaData",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -233,6 +286,26 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "depositForCreation",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "feeAmount",
+        "type": "uint256"
+      }
+    ],
+    "name": "depositZoniaFee",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -389,6 +462,32 @@
   {
     "inputs": [],
     "name": "userWallet",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "zoniaGate",
+    "outputs": [
+      {
+        "internalType": "contract IGate",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "zoniaTokenAddress",
     "outputs": [
       {
         "internalType": "address",

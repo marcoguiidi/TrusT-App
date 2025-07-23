@@ -708,7 +708,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       !currentChainId ||
       !ethersProviderRef.current ||
       !userCompanyRegistryContractRef.current ||
-      !isCoreContractsReady
+      !isCoreContractsReady ||
+      !individualWalletInfoAddress
     ) {
       console.error(
         "Blockchain components not ready for SmartInsurance creation.",
@@ -745,19 +746,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           insuredWalletAddress,
         );
 
-      const deployData = smartInsuranceIface.encodeDeploy([
-        insuredWalletAddress,
-        companyWalletAddress,
-        premiumAmountWei,
-        query,
-        sensor,
-        target_value,
-        geoloc,
-        payoutAmountWei,
-        tokenAddress,
-        userWalletInfo,
-        individualWalletInfoAddress,
-      ]);
+      interface InsuranceInitParams {
+        userWallet: string;
+        companyWallet: string;
+        premiumAmount: ethers.BigNumberish;
+        query: string;
+        sensor: string;
+        target_value: ethers.BigNumberish;
+        geoloc: string;
+        payoutAmount: ethers.BigNumberish;
+        tokenAddress: string;
+        userIndividualWalletInfo: string;
+        companyIndividualWalletInfo: string;
+        zoniaGateAddress: string;
+        zoniaTokenAddress: string;
+      }
+
+      const params: InsuranceInitParams = {
+        userWallet: insuredWalletAddress,
+        companyWallet: companyWalletAddress,
+        premiumAmount: premiumAmountWei,
+        query: query,
+        sensor: sensor,
+        target_value: target_value,
+        geoloc: geoloc,
+        payoutAmount: payoutAmountWei,
+        tokenAddress: tokenAddress,
+        userIndividualWalletInfo: userWalletInfo,
+        companyIndividualWalletInfo: individualWalletInfoAddress,
+        zoniaGateAddress:
+          chainIdToContractAddresses[currentChainId].zoniaContract,
+        zoniaTokenAddress:
+          chainIdToContractAddresses[currentChainId].zoniaToken,
+      };
+
+      const deployData = smartInsuranceIface.encodeDeploy([params]);
 
       const dataToSend =
         SmartInsuranceArtifact.bytecode + deployData.substring(2);
@@ -838,6 +861,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       console.log("Approval successful and confirmed.");
+
+      const depositData = smartInsuranceIface.encodeFunctionData(
+        "depositForCreation",
+        [],
+      );
+
+      const depositTxHash = await (
+        wcProvider as IWalletConnectEip1193Provider
+      ).request({
+        method: "eth_sendTransaction",
+        params: [
+          {
+            from: address,
+            to: deployedAddress,
+            data: depositData,
+            chainId: `0x${currentChainId.toString(16)}`,
+          },
+        ],
+      });
+      console.log(`deposit transaction sent. Hash: ${depositTxHash}`);
+      const depositReceipt =
+        await ethersProviderRef.current.waitForTransaction(depositTxHash);
+      if (!depositReceipt || depositReceipt.status == 0) {
+        throw new Error("Deposit payout transaction failed");
+      }
+
+      console.log("deposit payout succesfull.");
 
       return deployedAddress;
     } catch (e: any) {
@@ -1312,8 +1362,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       );
 
       const approveData = zoniaTokenIface.encodeFunctionData("approve", [
-        chainIdToContractAddresses[currentChainId].zoniaContract,
-        ethers.parseUnits(fee.toString(), 18),
+        chainIdToContractAddresses[currentChainId].zoniaContract, //insuranceAddress
+        10n,
       ]);
 
       const approveTxHash = await (
@@ -1338,6 +1388,84 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log("Approval successful and confirmed.");
       setZoniaRequestState("pending");
 
+      /*
+      const InsuranceIface = new ethers.Interface(SMART_INSURANCE_ABI);
+
+      const depositData = InsuranceIface.encodeFunctionData("depositZoniaFee", [
+        10n,
+      ]);
+
+      const depositHash = await (
+        wcProvider as IWalletConnectEip1193Provider
+      ).request({
+        method: "eth_sendTransaction",
+        params: [
+          {
+            from: address,
+            to: insuranceAddress,
+            data: depositData,
+            chainId: `0x${currentChainId.toString(16)}`,
+          },
+        ],
+      });
+
+      console.log("deposit transaction sent", depositHash);
+      const depositReceipt =
+        await ethersProviderRef.current.waitForTransaction(depositHash);
+
+      if (!depositReceipt || depositReceipt.status == 0) {
+        throw new Error("Deposit receipt failed");
+      }
+      console.log("Deposit receipt confirmed");
+
+      const submitData = InsuranceIface.encodeFunctionData(
+        "checkZoniaData",
+        [1, 1, 10],
+      );
+
+      const submitTxHash = await (
+        wcProvider as IWalletConnectEip1193Provider
+      ).request({
+        method: "eth_sendTransaction",
+        params: [
+          {
+            from: address,
+            to: insuranceAddress,
+            data: submitData,
+            chainId: `0x${currentChainId.toString(16)}`,
+          },
+        ],
+      });
+
+      console.log("submitRequest transaction sent.", submitTxHash);
+      let requestId: string = "";
+      const zoniaRequestSubmittedPromise = new Promise<void>((resolve) => {
+        const listener = (eventRequestId: string) => {
+          requestId = eventRequestId;
+          console.log("RequestId ottenuto:", requestId);
+          smartInsuranceContractRead.off("ZoniaRequestSubmitted", listener);
+          resolve();
+        };
+        smartInsuranceContractRead.on("ZoniaRequestSubmitted", listener);
+      });
+
+      const submitReceipt =
+        await ethersProviderRef.current.waitForTransaction(submitTxHash);
+
+      if (!submitReceipt || submitReceipt.status == 0) {
+        throw new Error("submitRequest transaction sent.");
+      }
+
+      console.log("submitRequest transaction confirmed.");
+
+      await zoniaRequestSubmittedPromise;
+      console.log(
+        "Evento ZoniaRequestSubmitted ricevuto con RequestId:",
+        requestId,
+      );
+      */
+
+      ///*
       const GateIface = new ethers.Interface(GATE_ABI);
 
       if (!chainParams) {
@@ -1435,6 +1563,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           "Failed to retrieve requestId from RequestSubmitted event. Ensure the smart contract emits this event.",
         );
       }
+      //*/
 
       const gateContractRead = new Contract(
         chainIdToContractAddresses[currentChainId]?.zoniaContract,
@@ -1464,10 +1593,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
             setZoniaRequestState("seeded");
             console.log(
-              "DEBUG seed getRequest",
-              gateContractRead.getRequest(requestId),
-            );
-            console.log(
               "DEBUG seed getResult",
               await getResultQuery(requestId),
             );
@@ -1483,10 +1608,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             );
 
             setZoniaRequestState("ready");
-            console.log(
-              "DEBUG ready getRequest",
-              gateContractRead.getRequest(requestId),
-            );
             console.log(
               "DEBUG ready getResult",
               await getResultQuery(requestId),
