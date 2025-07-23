@@ -1362,7 +1362,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       );
 
       const approveData = zoniaTokenIface.encodeFunctionData("approve", [
-        chainIdToContractAddresses[currentChainId].zoniaContract, //insuranceAddress
+        insuranceAddress, //chainIdToContractAddresses[currentChainId].zoniaContract,
         10n,
       ]);
 
@@ -1386,7 +1386,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Approve transaction for ZT failed");
       }
       console.log("Approval successful and confirmed.");
-      setZoniaRequestState("pending");
 
       /*
       const InsuranceIface = new ethers.Interface(SMART_INSURANCE_ABI);
@@ -1463,7 +1462,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         "Evento ZoniaRequestSubmitted ricevuto con RequestId:",
         requestId,
       );
-      */
+      //*/
 
       ///*
       const GateIface = new ethers.Interface(GATE_ABI);
@@ -1564,6 +1563,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         );
       }
       //*/
+
+      setZoniaRequestState("pending");
 
       const gateContractRead = new Contract(
         chainIdToContractAddresses[currentChainId]?.zoniaContract,
