@@ -1450,7 +1450,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("submitRequest transaction error.");
       }
 
-      console.log("submitRequest transaction confirmed.", submitReceipt);
+      console.log("submitRequest transaction confirmed.");
 
       for (const log of submitReceipt.logs) {
         try {
@@ -1468,6 +1468,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setZoniaRequestState("failed");
           return "Request Id not found";
         }
+      }
+
+      if (!requestId) {
+        setZoniaRequestState("failed");
+        return "Request Id not found";
       }
 
       //*/
