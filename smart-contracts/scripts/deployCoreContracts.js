@@ -12,6 +12,7 @@ async function main() {
   );
 
   // 1. Deploy del MyToken (TulToken)
+  /*
   const TulToken = await ethers.getContractFactory("TulToken");
   const initialSupply = ethers.parseEther("1000000");
 
@@ -51,6 +52,7 @@ async function main() {
       await myToken.balanceOf(wallet2Address)
     )}`
   );
+   */
   // --- Fine distribuzione token ---
 
   // 2. Deploy del UserCompanyRegistry
@@ -70,6 +72,7 @@ async function main() {
   }
   // /*
   // Dati per MyToken
+  /*
   const myTokenData = {
     address: myTokenAddress,
     abi: JSON.parse(
@@ -89,7 +92,7 @@ async function main() {
   );
   console.log(
     `TulToken contract address and ABI saved to ${constantsDir}/TulTokenContractData.json`
-  );
+  );*/
 
   // Dati per UserCompanyRegistry
   const userCompanyRegistryData = {

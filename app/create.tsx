@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Modal,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import { useAuth } from "../context/AuthContext";
@@ -20,7 +21,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ethers } from "ethers";
 
 export default function CreateScreen() {
-  const { createSmartInsurance, getMyTokenContract, walletAddress } = useAuth();
+  const {
+    createSmartInsurance,
+    getMyTokenContract,
+    walletAddress,
+    deploySmartInsuranceState,
+    clearDeployStatus,
+  } = useAuth();
   const router = useRouter();
 
   const [insuredWalletAddress, setInsuredWalletAddress] = useState<string>("");
@@ -113,7 +120,7 @@ export default function CreateScreen() {
     }
 
     const queryJson = {
-      topic: "zonia:PriceEthereum", //sensorType,
+      topic: sensorType,
       geo: {
         type: "Feature",
         geometry: {
@@ -393,6 +400,44 @@ export default function CreateScreen() {
               </TouchableOpacity>
             </View>
           </ScrollView>
+          <Modal
+            animationType="slide"
+            transparent={true}
+            visible={deploySmartInsuranceState !== ""}
+          >
+            <View className="flex-1 justify-center items-center bg-black/60">
+              <View className="bg-white p-6 rounded-lg shadow-xl items-center">
+                {deploySmartInsuranceState !== "failed" && (
+                  <ActivityIndicator
+                    size="large"
+                    color="#6b46c1"
+                    className="mb-4"
+                  />
+                )}
+                <Text className="text-lg font-bold text-gray-800 text-center">
+                  {deploySmartInsuranceState === "deploying"
+                    ? "Contract deploying"
+                    : deploySmartInsuranceState === "approving"
+                      ? "Approving"
+                      : deploySmartInsuranceState === "paying"
+                        ? "Depositing"
+                        : "Request has failed. Please retry"}
+                </Text>
+                {deploySmartInsuranceState !== "failed" ? (
+                  <Text className="font-light text-purple-700 text-center mt-2">
+                    Please wait, processing on blockchain...
+                  </Text>
+                ) : (
+                  <TouchableOpacity
+                    onPress={clearDeployStatus}
+                    className="rounded-full bg-purple-700 w-[100px] h-[30px] items-center justify-center mt-5"
+                  >
+                    <Text className="font-bold text-white text-lg">Close</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </Modal>
         </SafeAreaView>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>

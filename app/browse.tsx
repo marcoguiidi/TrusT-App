@@ -66,6 +66,7 @@ export default function BrowseScreen() {
   const [details, setDetails] = useState<SmartInsuranceDetails | null>(null);
   const [isModalLoading, setIsModalLoading] = useState(false);
   const [isPayingPremium, setIsPayingPremium] = useState(false);
+  const [isFetchingZonia, setIsFetchingZonia] = useState(false);
   const [key, setKey] = useState(0);
   const [status, setStatus] = useState<"pending" | "active" | "closed">(
     "pending",
@@ -154,6 +155,7 @@ export default function BrowseScreen() {
 
   const handleSubmitZonia = async () => {
     try {
+      setIsFetchingZonia(true);
       const result = await submitZoniaRequest(
         detailedInsuranceAddress,
         1,
@@ -166,6 +168,8 @@ export default function BrowseScreen() {
     } catch (e: any) {
       console.error("lalalalalala", e);
       setResultZonia(e.toString());
+    } finally {
+      setIsFetchingZonia(false);
     }
   };
 
@@ -188,7 +192,6 @@ export default function BrowseScreen() {
       setKey((prev) => prev + 1);
     } catch (e: any) {
       console.error("Error:", e);
-      Alert.alert("Error", `${e.message || "Unknown error"}`);
     }
   };
 
@@ -218,7 +221,6 @@ export default function BrowseScreen() {
       setKey((prev) => prev + 1);
     } catch (error: any) {
       console.error("Error:", error);
-      Alert.alert("Error", `${error.message || "Unknown error"}`);
     } finally {
       setIsPayingPremium(false);
     }
@@ -231,7 +233,6 @@ export default function BrowseScreen() {
       setKey((prev) => prev + 1);
     } catch (error: any) {
       console.error("Error:", error);
-      Alert.alert("Error", `${error.message || "Unknown error"}`);
     }
   };
 
@@ -538,6 +539,7 @@ export default function BrowseScreen() {
                   <TouchableOpacity
                     onPress={handleSubmitZonia}
                     className={`mt-5 bg-green-500 self-center rounded-full w-[200px] h-[45px] items-center justify-center`}
+                    disabled={isFetchingZonia}
                   >
                     <Text className="text-white font-bold text-lg">
                       Check data

@@ -5,6 +5,7 @@ import React, {
   useContext,
   ReactNode,
   useRef,
+  SetStateAction,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useWalletConnectModal } from "@walletconnect/modal-react-native";
@@ -26,6 +27,7 @@ import SmartInsuranceArtifact from "../smart-contracts/artifacts/contracts/Smart
 import { chainIdToContractAddresses } from "../constants/contractsAddresses";
 
 import { providerMetadata } from "../constants/walletConnectConfig";
+import { Alert } from "react-native";
 
 interface IWalletConnectEip1193Provider extends EIP1193Provider {
   request: (args: { method: string; params?: any[] }) => Promise<any>;
@@ -121,6 +123,13 @@ interface AuthContextType {
     | "failed"
     | null;
   clearZoniaRequestState: () => void;
+  deploySmartInsuranceState:
+    | ""
+    | "deploying"
+    | "approving"
+    | "paying"
+    | "failed";
+  clearDeployStatus: () => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -143,6 +152,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [zoniaRequestState, setZoniaRequestState] = useState<
     "pending" | "submitted" | "seeded" | "ready" | "completed" | "failed" | null
   >(null);
+
+  const [deploySmartInsuranceState, setDeploySmartInsuranceState] = useState<
+    "deploying" | "approving" | "paying" | "" | "failed"
+  >("");
 
   const {
     isConnected,
@@ -639,7 +652,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         ],
       });
       console.log(`Approve transaction sent. Hash: ${approveTxHash}`);
-      await ethersProviderRef.current.waitForTransaction(approveTxHash);
+
+      let approveTimeoutId: NodeJS.Timeout | undefined;
+      const approveTimeoutPromise = new Promise<never>((_resolve, reject) => {
+        approveTimeoutId = setTimeout(() => {
+          Alert.alert("Approve transaction failed", "please try again");
+          reject(new Error("Approve transaction confirmation timed out."));
+        }, 15000);
+      });
+
+      const approveReceipt = await Promise.race([
+        ethersProviderRef.current.waitForTransaction(approveTxHash),
+        approveTimeoutPromise,
+      ]);
+
+      clearTimeout(approveTimeoutId);
+
+      if (!approveReceipt || approveReceipt.status == 0) {
+        throw new Error("Approve transaction failed");
+      }
+
       console.log("Approval successful and confirmed.");
 
       console.log(
@@ -665,10 +697,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         ],
       });
       console.log(`Pay Premium transaction sent. Hash: ${payTxHash}`);
-      const receipt = await ethersProviderRef.current.waitForTransaction(
-        payTxHash,
-        1,
-      );
+
+      let payTimeoutId: NodeJS.Timeout | undefined;
+      const payTimeoutPromise = new Promise<never>((_resolve, reject) => {
+        payTimeoutId = setTimeout(() => {
+          Alert.alert("Pay Premium transaction failed", "please try again");
+          reject(new Error("Pay Premium transaction confirmation timed out."));
+        }, 15000);
+      });
+
+      const receipt = await Promise.race([
+        ethersProviderRef.current.waitForTransaction(payTxHash),
+        payTimeoutPromise,
+      ]);
+
+      clearTimeout(payTimeoutId);
 
       if (!receipt || receipt.status == 0) {
         throw new Error("PayPremium transaction failed.");
@@ -805,9 +848,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         "Transazione di deploy SmartInsurance inviata. Hash:",
         deployTxHash,
       );
+      setDeploySmartInsuranceState("deploying");
 
-      const receipt =
-        await ethersProviderRef.current.waitForTransaction(deployTxHash);
+      let deployTimeoutId: NodeJS.Timeout | undefined;
+      const deployTimeoutPromise = new Promise<never>((_resolve, reject) => {
+        deployTimeoutId = setTimeout(() => {
+          setDeploySmartInsuranceState("failed");
+          reject(new Error("Deploy transaction confirmation timed out."));
+        }, 15000);
+      });
+
+      const receipt = await Promise.race([
+        ethersProviderRef.current.waitForTransaction(deployTxHash),
+        deployTimeoutPromise,
+      ]);
+
+      clearTimeout(deployTimeoutId);
+
       if (!receipt || !receipt.contractAddress || receipt.status == 0) {
         throw new Error(
           "Failed to get contract address from deploy transaction receipt.",
@@ -846,8 +903,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         ],
       });
       console.log(`Approve transaction sent. Hash: ${approveTxHash}`);
-      const approveReceipt =
-        await ethersProviderRef.current.waitForTransaction(approveTxHash);
+      setDeploySmartInsuranceState("approving");
+
+      let approveTimeoutId: NodeJS.Timeout | undefined;
+      const approveTimeoutPromise = new Promise<never>((_resolve, reject) => {
+        approveTimeoutId = setTimeout(() => {
+          setDeploySmartInsuranceState("failed");
+          reject(new Error("Approve transaction confirmation timed out."));
+        }, 15000);
+      });
+
+      const approveReceipt = await Promise.race([
+        ethersProviderRef.current.waitForTransaction(approveTxHash),
+        approveTimeoutPromise,
+      ]);
+
+      clearTimeout(approveTimeoutId);
+
       if (!approveReceipt || approveReceipt.status == 0) {
         throw new Error("Approve payout transaction failed");
       }
@@ -873,13 +945,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         ],
       });
       console.log(`deposit transaction sent. Hash: ${depositTxHash}`);
-      const depositReceipt =
-        await ethersProviderRef.current.waitForTransaction(depositTxHash);
+      setDeploySmartInsuranceState("paying");
+
+      let depositTimeoutId: NodeJS.Timeout | undefined;
+      const depositTimeoutPromise = new Promise<never>((_resolve, reject) => {
+        deployTimeoutId = setTimeout(() => {
+          setDeploySmartInsuranceState("failed");
+          reject(new Error("Deposit transaction confirmation timed out."));
+        }, 15000);
+      });
+
+      const depositReceipt = await Promise.race([
+        ethersProviderRef.current.waitForTransaction(depositTxHash),
+        depositTimeoutPromise,
+      ]);
+
+      clearTimeout(depositTimeoutId);
+
       if (!depositReceipt || depositReceipt.status == 0) {
         throw new Error("Deposit payout transaction failed");
       }
 
       console.log("deposit payout succesfull.");
+      setDeploySmartInsuranceState("");
 
       return deployedAddress;
     } catch (e: any) {
@@ -1013,8 +1101,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       console.log(`CancelPolicy transaction sent. Hash: ${cancelTxHash}`);
-      const receipt =
-        await ethersProviderRef.current.waitForTransaction(cancelTxHash);
+
+      let cancelTimeoutId: NodeJS.Timeout | undefined;
+      const cancelTimeoutPromise = new Promise<never>((_resolve, reject) => {
+        cancelTimeoutId = setTimeout(() => {
+          Alert.alert("Cancel Policy transaction failed", "please try again");
+          reject(new Error("Cancel transaction confirmation timed out."));
+        }, 15000);
+      });
+
+      const receipt = await Promise.race([
+        ethersProviderRef.current.waitForTransaction(cancelTxHash),
+        cancelTimeoutPromise,
+      ]);
+
+      clearTimeout(cancelTimeoutId);
 
       if (!receipt || receipt.status == 0) {
         throw new Error("cancelPolicy transaction failed.");
@@ -1372,8 +1473,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         ],
       });
       console.log(`Approve transaction sent. Hash: ${approveTxHash}`);
-      const approveReceipt =
-        await ethersProviderRef.current.waitForTransaction(approveTxHash);
+
+      let approveTimeoutId: NodeJS.Timeout | undefined;
+      const approveTimeoutPromise = new Promise<never>((_resolve, reject) => {
+        approveTimeoutId = setTimeout(() => {
+          Alert.alert("Approve transaction failed", "please try again");
+          reject(new Error("Approve transaction confirmation timed out."));
+        }, 15000);
+      });
+
+      const approveReceipt = await Promise.race([
+        ethersProviderRef.current.waitForTransaction(approveTxHash),
+        approveTimeoutPromise,
+      ]);
+
+      clearTimeout(approveTimeoutId);
+
       if (!approveReceipt || approveReceipt.status == 0) {
         throw new Error("Approve transaction for ZT failed");
       }
@@ -1495,8 +1610,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         );
       }
 
-      const receipt =
-        await ethersProviderRef.current.waitForTransaction(submitHash);
+      let submitTimeoutId: NodeJS.Timeout | undefined;
+      const submitTimeoutPromise = new Promise<never>((_resolve, reject) => {
+        submitTimeoutId = setTimeout(() => {
+          Alert.alert("Submit transaction failed", "please try again");
+          reject(new Error("Submit transaction confirmation timed out."));
+        }, 15000);
+      });
+
+      const receipt = await Promise.race([
+        ethersProviderRef.current.waitForTransaction(submitHash),
+        submitTimeoutPromise,
+      ]);
+
+      clearTimeout(submitTimeoutId);
 
       if (!receipt || receipt.status == 0) {
         console.error("\n--- ERRORE: TRANSAZIONE ZONIA REVERTITA ON-CHAIN ---");
@@ -1644,6 +1771,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setZoniaRequestState(null);
   };
 
+  const clearDeployStatus = () => {
+    setDeploySmartInsuranceState("");
+  };
+
   const contextValue: AuthContextType = {
     selectedAppRole,
     selectAppRole,
@@ -1672,6 +1803,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     zoniaRequestState,
     clearZoniaRequestState,
     cancelPolicy,
+    deploySmartInsuranceState,
+    clearDeployStatus,
   };
 
   return (

@@ -2,6 +2,7 @@ require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
 
 const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL;
+const SEPOLIA_ACCOUNT_KEY = process.env.SEPOLIA_ACCOUNT_KEY;
 
 module.exports = {
   solidity: "0.8.24",
@@ -15,7 +16,7 @@ module.exports = {
   networks: {
     sepolia: {
       url: SEPOLIA_RPC_URL,
-      accounts: [],
+      accounts: SEPOLIA_ACCOUNT_KEY ? [SEPOLIA_ACCOUNT_KEY] : [],
       chainId: 11155111,
     },
     localhost: {
