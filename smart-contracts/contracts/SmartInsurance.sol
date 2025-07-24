@@ -89,13 +89,17 @@ contract SmartInsurance is Ownable {
 
     function checkZoniaData(uint256 ko, uint256 ki, uint256 fee) public {
         require(currentStatus == Status.Active, "Policy not Active");
+        depositZoniaFee(fee);
+
+        IERC20 zoniaToken = IERC20(zoniaTokenAddress);
+        require(zoniaToken.approve(address(zoniaGate), fee), "Approve failed");
 
         IGate.InputRequest memory inputData = IGate.InputRequest({
             query: query,
             chainParams: IGate.ChainParams({w1: 25, w2: 25, w3: 25, w4: 25}),
             ko: ko,
             ki: ki,
-            fee: 10
+            fee: fee
         });
 
         bytes32 requestId = zoniaGate.submitRequest(inputData);

@@ -1387,9 +1387,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       console.log("Approval successful and confirmed.");
 
-      /*
+      ///*
       const InsuranceIface = new ethers.Interface(SMART_INSURANCE_ABI);
 
+      /*
       const depositData = InsuranceIface.encodeFunctionData("depositZoniaFee", [
         10n,
       ]);
@@ -1416,11 +1417,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Deposit receipt failed");
       }
       console.log("Deposit receipt confirmed");
+       */
 
       const submitData = InsuranceIface.encodeFunctionData(
         "checkZoniaData",
         [1, 1, 10],
       );
+
+      console.log("sending submitRequest zonia");
 
       const submitTxHash = await (
         wcProvider as IWalletConnectEip1193Provider
@@ -1438,33 +1442,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       console.log("submitRequest transaction sent.", submitTxHash);
       let requestId: string = "";
-      const zoniaRequestSubmittedPromise = new Promise<void>((resolve) => {
-        const listener = (eventRequestId: string) => {
-          requestId = eventRequestId;
-          console.log("RequestId ottenuto:", requestId);
-          smartInsuranceContractRead.off("ZoniaRequestSubmitted", listener);
-          resolve();
-        };
-        smartInsuranceContractRead.on("ZoniaRequestSubmitted", listener);
-      });
 
       const submitReceipt =
         await ethersProviderRef.current.waitForTransaction(submitTxHash);
 
       if (!submitReceipt || submitReceipt.status == 0) {
-        throw new Error("submitRequest transaction sent.");
+        throw new Error("submitRequest transaction error.");
       }
 
-      console.log("submitRequest transaction confirmed.");
+      console.log("submitRequest transaction confirmed.", submitReceipt);
 
-      await zoniaRequestSubmittedPromise;
-      console.log(
-        "Evento ZoniaRequestSubmitted ricevuto con RequestId:",
-        requestId,
-      );
+      for (const log of submitReceipt.logs) {
+        try {
+          const parsedLog = InsuranceIface.parseLog(log);
+          if (parsedLog && parsedLog.name === "ZoniaRequestSubmitted") {
+            requestId = parsedLog.args[0];
+            console.log(
+              "Evento ZoniaRequestSubmitted trovato. RequestId:",
+              requestId,
+            );
+            setZoniaRequestState("submitted");
+            break;
+          }
+        } catch (e) {
+          setZoniaRequestState("failed");
+          return "Request Id not found";
+        }
+      }
+
       //*/
 
-      ///*
+      /*
       const GateIface = new ethers.Interface(GATE_ABI);
 
       if (!chainParams) {
@@ -1562,9 +1570,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           "Failed to retrieve requestId from RequestSubmitted event. Ensure the smart contract emits this event.",
         );
       }
-      //*/
 
       setZoniaRequestState("pending");
+
+
+      //*/
 
       const gateContractRead = new Contract(
         chainIdToContractAddresses[currentChainId]?.zoniaContract,

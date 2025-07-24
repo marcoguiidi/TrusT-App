@@ -32,6 +32,7 @@
     "hermes-parser": "^0.29.0",
     "lucide-react-native": "^0.525.0",
     "nativewind": "latest",
+    "prop-types": "^15.8.1",
     "query-string": "^9.2.1",
     "react": "19.0.0",
     "react-dom": "19.0.0",

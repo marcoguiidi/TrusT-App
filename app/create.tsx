@@ -113,7 +113,7 @@ export default function CreateScreen() {
     }
 
     const queryJson = {
-      topic: sensorType,
+      topic: "zonia:PriceEthereum", //sensorType,
       geo: {
         type: "Feature",
         geometry: {
