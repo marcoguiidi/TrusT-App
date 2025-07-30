@@ -130,6 +130,7 @@ interface AuthContextType {
     | "paying"
     | "failed";
   clearDeployStatus: () => void;
+  canRequestPayout: boolean;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -156,6 +157,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [deploySmartInsuranceState, setDeploySmartInsuranceState] = useState<
     "deploying" | "approving" | "paying" | "" | "failed"
   >("");
+
+  const [canRequestPayout, setCanRequestPayout] = useState(false);
 
   const {
     isConnected,
@@ -1756,6 +1759,61 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         gateContractRead.on("RequestFailed", failedListener);
       });
       console.log("final result", finalResult);
+
+      // iniziamo la fase di check on chain del result
+      if (zoniaRequestState === "failed") {
+        return finalResult;
+      }
+      console.log("checking on chain");
+
+      const InsuranceIface = new ethers.Interface(SMART_INSURANCE_ABI);
+      const checkData = InsuranceIface.encodeFunctionData("checkZoniaData", [
+        requestId,
+      ]);
+
+      const checkDataTxHash = await (
+        wcProvider as IWalletConnectEip1193Provider
+      ).request({
+        method: "eth_sendTransaction",
+        params: [
+          {
+            from: address,
+            to: insuranceAddress,
+            data: checkData,
+            chainId: `0x${currentChainId.toString(16)}`,
+          },
+        ],
+      });
+
+      let checkDataTimeoutId: NodeJS.Timeout | undefined;
+      const checkDataTimeoutPromise = new Promise<never>((_resolve, reject) => {
+        checkDataTimeoutId = setTimeout(() => {
+          Alert.alert("Check Data transaction failed", "please try again");
+          reject(new Error("Check Data transaction confirmation timed out."));
+        }, 25000);
+      });
+
+      const checkDataReceipt = await Promise.race([
+        ethersProviderRef.current.waitForTransaction(checkDataTxHash),
+        checkDataTimeoutPromise,
+      ]);
+
+      clearTimeout(checkDataTimeoutId);
+
+      if (!checkDataReceipt || checkDataReceipt.status == 0) {
+        throw new Error(
+          "Zonia submission transaction failed: transaction reverted on-chain.",
+        );
+      }
+      const smartInsuranceContract =
+        getSmartInsuranceContract(insuranceAddress);
+
+      setCanRequestPayout(
+        smartInsuranceContract != null
+          ? await smartInsuranceContract.conditionsSatisfied()
+          : false,
+      );
+
       return finalResult;
     } catch (error: any) {
       console.error("\n--- ERRORE GENERALE IN SUBMIT ZONIA REQUEST ---");
@@ -1805,6 +1863,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     cancelPolicy,
     deploySmartInsuranceState,
     clearDeployStatus,
+    canRequestPayout,
   };
 
   return (

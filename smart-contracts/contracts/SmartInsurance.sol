@@ -37,6 +37,8 @@ contract SmartInsurance is Ownable {
     address public userIndividualWalletInfo;
     address public companyIndividualWalletInfo;
 
+    bool public conditionsSatisfied;
+
     enum Status { Pending, Active, Claimed, Cancelled }
     Status public currentStatus;
 
@@ -77,6 +79,8 @@ contract SmartInsurance is Ownable {
         companyIndividualWalletInfo = params.companyIndividualWalletInfo;
         zoniaTokenAddress = params.zoniaTokenAddress;
 
+        conditionsSatisfied = false;
+
         zoniaGate = IGate(params.zoniaGateAddress);
 
 
@@ -87,23 +91,42 @@ contract SmartInsurance is Ownable {
         IndividualWalletInfo(companyIndividualWalletInfo).addSmartInsuranceContract(address(this));
     }
 
-    function checkZoniaData(uint256 ko, uint256 ki, uint256 fee) public {
+    function stringToUint(string memory s) public returns (uint, bool) {
+        bool hasError = false;
+        bytes memory b = bytes(s);
+        uint result = 0;
+        uint oldResult = 0;
+        for (uint i = 0; i < b.length; i++) {
+            uint8 charValue = uint8(b[i]);
+            if (charValue >= 48 && charValue <= 57) {
+                oldResult = result;
+                result = result * 10 + (charValue - 48);
+                if(oldResult > result ) {
+                    hasError = true;
+                }
+            } else {
+                hasError = true;
+            }
+        }
+        return (result, hasError);
+    }
+
+    function checkZoniaData(bytes32 requestId) public {
         require(currentStatus == Status.Active, "Policy not Active");
-        depositZoniaFee(fee);
+        conditionsSatisfied = false;
 
-        IERC20 zoniaToken = IERC20(zoniaTokenAddress);
-        require(zoniaToken.approve(address(zoniaGate), fee), "Approve failed");
+        string memory result = zoniaGate.getResult(requestId);
 
-        IGate.InputRequest memory inputData = IGate.InputRequest({
-            query: query,
-            chainParams: IGate.ChainParams({w1: 25, w2: 25, w3: 25, w4: 25}),
-            ko: ko,
-            ki: ki,
-            fee: fee
-        });
+        (uint unitRes, bool success) = stringToUint(result);
+        if( success == false ) {
+            revert("Impossible to convert result");
+        }
 
-        bytes32 requestId = zoniaGate.submitRequest(inputData);
-        emit ZoniaRequestSubmitted(requestId);
+        if( unitRes >= target_value ) {
+            conditionsSatisfied = true;
+        } else {
+            conditionsSatisfied = false;
+        }
     }
 
     function depositZoniaFee(uint256 feeAmount) public {
@@ -130,6 +153,7 @@ contract SmartInsurance is Ownable {
     function executePayout() public {
         require(currentStatus == Status.Active, "Policy not active");
         require(msg.sender == userWallet, "Only the user can require the payout");
+        require(conditionsSatisfied == true, "Conditions not satisfied");
 
         IERC20 token = IERC20(tokenAddress);
         require(token.transfer(userWallet, payoutAmount), "Token transfer failed");
