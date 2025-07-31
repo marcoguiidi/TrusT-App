@@ -29,6 +29,8 @@ import { chainIdToContractAddresses } from "../constants/contractsAddresses";
 import { providerMetadata } from "../constants/walletConnectConfig";
 import { Alert } from "react-native";
 
+const GLOBAL_TIMEOUT_TX = 20000;
+
 interface IWalletConnectEip1193Provider extends EIP1193Provider {
   request: (args: { method: string; params?: any[] }) => Promise<any>;
 }
@@ -663,7 +665,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         approveTimeoutId = setTimeout(() => {
           Alert.alert("Approve transaction failed", "please try again");
           reject(new Error("Approve transaction confirmation timed out."));
-        }, 15000);
+        }, GLOBAL_TIMEOUT_TX);
       });
 
       const approveReceipt = await Promise.race([
@@ -708,7 +710,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         payTimeoutId = setTimeout(() => {
           Alert.alert("Pay Premium transaction failed", "please try again");
           reject(new Error("Pay Premium transaction confirmation timed out."));
-        }, 15000);
+        }, GLOBAL_TIMEOUT_TX);
       });
 
       const receipt = await Promise.race([
@@ -863,7 +865,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         deployTimeoutId = setTimeout(() => {
           setDeploySmartInsuranceState("failed");
           reject(new Error("Deploy transaction confirmation timed out."));
-        }, 15000);
+        }, GLOBAL_TIMEOUT_TX);
       });
 
       const receipt = await Promise.race([
@@ -918,7 +920,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         approveTimeoutId = setTimeout(() => {
           setDeploySmartInsuranceState("failed");
           reject(new Error("Approve transaction confirmation timed out."));
-        }, 15000);
+        }, GLOBAL_TIMEOUT_TX);
       });
 
       const approveReceipt = await Promise.race([
@@ -960,7 +962,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         deployTimeoutId = setTimeout(() => {
           setDeploySmartInsuranceState("failed");
           reject(new Error("Deposit transaction confirmation timed out."));
-        }, 15000);
+        }, GLOBAL_TIMEOUT_TX);
       });
 
       const depositReceipt = await Promise.race([
@@ -1115,7 +1117,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         cancelTimeoutId = setTimeout(() => {
           Alert.alert("Cancel Policy transaction failed", "please try again");
           reject(new Error("Cancel transaction confirmation timed out."));
-        }, 15000);
+        }, GLOBAL_TIMEOUT_TX);
       });
 
       const receipt = await Promise.race([
@@ -1491,7 +1493,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         approveTimeoutId = setTimeout(() => {
           Alert.alert("Approve transaction failed", "please try again");
           reject(new Error("Approve transaction confirmation timed out."));
-        }, 15000);
+        }, GLOBAL_TIMEOUT_TX);
       });
 
       const approveReceipt = await Promise.race([
@@ -1627,7 +1629,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         submitTimeoutId = setTimeout(() => {
           Alert.alert("Submit transaction failed", "please try again");
           reject(new Error("Submit transaction confirmation timed out."));
-        }, 15000);
+        }, GLOBAL_TIMEOUT_TX);
       });
 
       const receipt = await Promise.race([
@@ -1799,7 +1801,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         checkDataTimeoutId = setTimeout(() => {
           Alert.alert("Check Data transaction failed", "please try again");
           reject(new Error("Check Data transaction confirmation timed out."));
-        }, 25000);
+        }, GLOBAL_TIMEOUT_TX);
       });
 
       const checkDataReceipt = await Promise.race([
