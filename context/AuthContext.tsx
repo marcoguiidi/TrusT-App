@@ -44,6 +44,7 @@ interface SmartInsuranceDetails {
   payoutAmount: string;
   tokenAddress: string;
   currentStatus: number;
+  expirationTimestamp: number;
 }
 
 interface ChainParams {
@@ -92,6 +93,7 @@ interface AuthContextType {
     premiumAmount: string,
     payoutAmount: string,
     tokenAddress: string,
+    expirationTimestamp: bigint,
   ) => Promise<string>;
   getSmartInsurancesForWallet: (
     walletAddr: string,
@@ -745,6 +747,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     premiumAmount: string,
     payoutAmount: string,
     tokenAddress: string,
+    expirationTimestamp: bigint,
   ): Promise<string> => {
     if (
       !insuredWalletAddress ||
@@ -806,6 +809,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         companyIndividualWalletInfo: string;
         zoniaGateAddress: string;
         zoniaTokenAddress: string;
+        expirationTimestamp: bigint;
       }
 
       const params: InsuranceInitParams = {
@@ -824,6 +828,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           chainIdToContractAddresses[currentChainId].zoniaContract,
         zoniaTokenAddress:
           chainIdToContractAddresses[currentChainId].zoniaToken,
+        expirationTimestamp: expirationTimestamp,
       };
 
       const deployData = smartInsuranceIface.encodeDeploy([params]);
@@ -1308,6 +1313,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const premiumAmount = ethers.formatUnits(premiumAmountWei, 18);
       const payoutAmount = ethers.formatUnits(payoutAmountWei, 18);
 
+      const expirationTimestamp =
+        await smartInsuranceContract.expirationTimestamp();
+
       const details: SmartInsuranceDetails = {
         userWallet: userWallet.toString(),
         companyWallet: companyWallet.toString(),
@@ -1319,6 +1327,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         payoutAmount: payoutAmount,
         tokenAddress: tokenAddress.toString(),
         currentStatus: Number(currentStatus),
+        expirationTimestamp: Number(expirationTimestamp),
       };
 
       console.log(

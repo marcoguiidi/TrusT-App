@@ -19,6 +19,9 @@ import { useAuth } from "../context/AuthContext";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ethers } from "ethers";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { format } from "date-fns";
+import { Divider } from "react-native-paper";
 
 export default function CreateScreen() {
   const {
@@ -45,6 +48,9 @@ export default function CreateScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [successMessage, setSuccessMessage] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string>("");
+
+  const [expirationDate, setExpirationDate] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState<boolean>(false); // Aggiungi questo stato
 
   useEffect(() => {
     const fetchTokenAddress = async () => {
@@ -119,6 +125,15 @@ export default function CreateScreen() {
       return;
     }
 
+    if (expirationDate.getTime() <= Date.now()) {
+      setErrorMessage("Expiration date must be in the future.");
+      setIsLoading(false);
+      return;
+    }
+    const expirationTimestamp = BigInt(
+      Math.floor(expirationDate.getTime() / 1000),
+    );
+
     const queryJson = {
       topic: sensorType,
       geo: {
@@ -157,11 +172,12 @@ export default function CreateScreen() {
         formattedPremiumAmount,
         formattedPayoutAmount,
         tokenAddress,
+        expirationTimestamp,
       );
 
       if (deployedInsuranceAddress) {
         setSuccessMessage(
-          `Polizza SmartInsurance creata con successo! Indirizzo: ${deployedInsuranceAddress}`,
+          `Smart insurance created successfully! Address on chain: ${deployedInsuranceAddress}`,
         );
         setInsuredWalletAddress("");
         setPremiumAmount("");
@@ -184,262 +200,331 @@ export default function CreateScreen() {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        className="flex-1 bg-white"
-      >
-        <SafeAreaView className="flex-1 items-center justify-start pt-8">
-          <Text className="text-3xl font-bold mb-6 text-purple-700">
-            Create New Insurance
+      <SafeAreaView className="flex-1 items-center justify-start pt-8">
+        <Text className="text-3xl font-bold mb-6 text-purple-700">
+          Create New Insurance
+        </Text>
+        <ScrollView className="w-full px-8" keyboardShouldPersistTaps="handled">
+          <Text className="text-xl font-bold mb-4 text-purple-700 text-center mt-4">
+            Policy Details
           </Text>
-          <ScrollView className="w-full px-8">
-            <View className="mb-4">
-              <Text className="text-lg font-bold mb-2 text-purple-700">
-                INSURED WALLET ADDRESS
-              </Text>
-              <TextInput
-                className="w-full p-3 border-2 border-purple-700 rounded-lg text-base text-gray-800 bg-gray-50"
-                placeholder="0x..."
-                placeholderTextColor="#A0AEC0"
-                value={insuredWalletAddress}
-                onChangeText={setInsuredWalletAddress}
-                keyboardType="default"
-                autoCapitalize="none"
-              />
-            </View>
+          <View className="mb-4">
+            <Text className="text-sm font-semibold mb-1 text-gray-600">
+              INSURED WALLET ADDRESS
+            </Text>
+            <TextInput
+              className="w-full p-3 border border-purple-300 rounded-lg text-base text-gray-800 bg-gray-50 focus:border-purple-500"
+              placeholder="0x..."
+              placeholderTextColor="#A0AEC0"
+              value={insuredWalletAddress}
+              onChangeText={setInsuredWalletAddress}
+              keyboardType="default"
+              autoCapitalize="none"
+            />
+          </View>
 
-            <View className="mb-4">
-              <Text className="text-lg font-bold mb-2 text-purple-700">
-                PREMIUM AMOUNT (IN TOKEN UNITS)
-              </Text>
-              <TextInput
-                className="w-full p-3 border-2 border-purple-700 rounded-lg text-base text-gray-800 bg-gray-50"
-                placeholder="E.g. 10.5"
-                placeholderTextColor="#A0AEC0"
-                value={premiumAmount}
-                onChangeText={setPremiumAmount}
-                keyboardType="numeric"
-              />
-            </View>
+          <View className="mb-4">
+            <Text className="text-sm font-semibold mb-1 text-gray-600">
+              PREMIUM AMOUNT (IN TOKEN UNITS)
+            </Text>
+            <TextInput
+              className="w-full p-3 border border-purple-300 rounded-lg text-base text-gray-800 bg-gray-50 focus:border-purple-500"
+              placeholder="E.g. 10.5"
+              placeholderTextColor="#A0AEC0"
+              value={premiumAmount}
+              onChangeText={setPremiumAmount}
+              keyboardType="numeric"
+            />
+          </View>
 
-            <View className="mb-4">
-              <Text className="text-lg font-bold mb-2 text-purple-700">
-                PAYOUT AMOUNT (IN TOKEN UNITS)
-              </Text>
-              <TextInput
-                className="w-full p-3 border-2 border-purple-700 rounded-lg text-base text-gray-800 bg-gray-50"
-                placeholder="E.g. 100"
-                placeholderTextColor="#A0AEC0"
-                value={payoutAmount}
-                onChangeText={setPayoutAmount}
-                keyboardType="numeric"
-              />
-            </View>
+          <View className="mb-4">
+            <Text className="text-sm font-semibold mb-1 text-gray-600">
+              PAYOUT AMOUNT (IN TOKEN UNITS)
+            </Text>
+            <TextInput
+              className="w-full p-3 border border-purple-300 rounded-lg text-base text-gray-800 bg-gray-50 focus:border-purple-500"
+              placeholder="E.g. 100"
+              placeholderTextColor="#A0AEC0"
+              value={payoutAmount}
+              onChangeText={setPayoutAmount}
+              keyboardType="numeric"
+            />
+          </View>
 
-            <View className="mb-4">
-              <Text className="text-xl font-bold mb-4 text-purple-700 text-center mt-4">
-                Geographic Query Details
-              </Text>
-              <View className="mb-4">
-                <Text className="text-lg font-bold mb-2 text-purple-700">
-                  SENSOR TYPE
-                </Text>
-                <View className="w-full border-2 border-purple-700 rounded-lg overflow-hidden bg-gray-50">
-                  <Picker
-                    selectedValue={sensorType}
-                    onValueChange={(itemValue: string) =>
-                      setSensorType(itemValue)
-                    }
-                    className="text-base text-gray-800"
-                  >
-                    <Picker.Item
-                      label="Ambient Humidity (s4agri)"
-                      value="s4agri:AmbientHumidity"
-                    />
-                    <Picker.Item
-                      label="Temperature (saref)"
-                      value="saref:Temperature"
-                    />
-                  </Picker>
-                </View>
-              </View>
+          <View className="mb-4">
+            <Text className="text-sm font-semibold mb-1 text-gray-600">
+              EXPIRATION DATE
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowDatePicker((prev) => !prev)}
+              className="w-full p-3 border border-purple-300 rounded-lg text-base text-gray-800 bg-gray-50 flex-row justify-between items-center"
+            >
+              <Text>{format(expirationDate, "dd/MM/yyyy")}</Text>
 
-              <View className="mb-4">
-                <Text className="text-lg font-bold mb-2 text-purple-700">
-                  TARGET VALUE ({">"}=)
-                </Text>
-                <TextInput
-                  className="w-full p-3 border-2 border-purple-700 rounded-lg text-base text-gray-800 bg-gray-50"
-                  placeholder="25"
-                  placeholderTextColor="#A0AEC0"
-                  value={targetValue}
-                  onChangeText={setTargetValue}
-                  keyboardType="numeric"
-                />
-              </View>
-
-              <View className="mb-4">
-                <Text className="text-lg font-bold mb-2 text-purple-700">
-                  LATITUDE
-                </Text>
-                <TextInput
-                  className="w-full p-3 border-2 border-purple-700 rounded-lg text-base text-gray-800 bg-gray-50"
-                  placeholder="e.g., 44.4948"
-                  placeholderTextColor="#A0AEC0"
-                  value={latitude}
-                  onChangeText={setLatitude}
-                  keyboardType="numeric"
-                />
-              </View>
-
-              <View className="mb-4">
-                <Text className="text-lg font-bold mb-2 text-purple-700">
-                  LONGITUDE
-                </Text>
-                <TextInput
-                  className="w-full p-3 border-2 border-purple-700 rounded-lg text-base text-gray-800 bg-gray-50"
-                  placeholder="e.g., 11.3426"
-                  placeholderTextColor="#A0AEC0"
-                  value={longitude}
-                  onChangeText={setLongitude}
-                  keyboardType="numeric"
-                />
-              </View>
-
-              <View className="mb-4">
-                <Text className="text-lg font-bold mb-2 text-purple-700">
-                  RADIUS (meters)
-                </Text>
-                <TextInput
-                  className="w-full p-3 border-2 border-purple-700 rounded-lg text-base text-gray-800 bg-gray-50"
-                  placeholder="e.g., 500"
-                  placeholderTextColor="#A0AEC0"
-                  value={radius}
-                  onChangeText={setRadius}
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
-
-            <View className="mb-4">
-              <Text className="text-lg font-bold mb-2 text-purple-700">
-                TOKEN ADDRESS (ERC-20)
-              </Text>
-              <TextInput
-                className="w-full p-3 border-2 border-purple-700 rounded-lg text-base bg-gray-100 text-gray-500"
-                placeholder="0x..."
-                placeholderTextColor="#A0AEC0"
-                value={tokenAddress}
-                editable={false}
-              />
-            </View>
-
-            {isLoading && (
-              <View className="flex-row items-center justify-center mb-4">
-                <ActivityIndicator
-                  size="small"
-                  color="#6b46c1"
-                  className="mr-2"
-                />
-                <Text className="text-lg text-purple-600 font-light">
-                  Interacting with blockchain ...
-                </Text>
-              </View>
-            )}
-            {errorMessage && (
-              <View className="flex flex-row items-center justify-center mb-4">
-                <Image
-                  source={require("../assets/images/error-red.png")}
-                  className="w-5 h-5"
-                  resizeMode="contain"
-                />
-                <Text
-                  className="text-red-500 text-center text-base mx-2"
-                  onPress={() => {
-                    Alert.alert("Error", errorMessage);
+              {showDatePicker && (
+                <DateTimePicker
+                  testID="dateTimePicker"
+                  value={expirationDate}
+                  mode="date"
+                  display="default"
+                  minimumDate={new Date()}
+                  onChange={(event, selectedDate) => {
+                    const currentDate = selectedDate || expirationDate;
+                    setExpirationDate(currentDate);
                   }}
-                >
-                  Error processing Smart Insurance
-                </Text>
-              </View>
-            )}
-            {successMessage && (
-              <View className="flex flex-row items-center justify-center mb-4">
-                <Image
-                  source={require("../assets/images/success-green.png")}
-                  className="w-5 h-5"
-                  resizeMode="contain"
                 />
-                <Text className="text-green-600 text-center text-base mx-2">
-                  Smart Insurance created successfully!
-                </Text>
-              </View>
-            )}
-            <View className="justify-center items-center my-4">
-              <TouchableOpacity
-                onPress={handleSubmit}
-                className={`bg-purple-700 rounded-full w-[250px] h-[50px] items-center justify-center mb-5 ${isLoading ? "opacity-50" : ""}`}
-                disabled={isLoading}
-              >
-                <Text className="text-white font-bold text-xl">
-                  {isLoading ? "Submitting..." : "Create Smart Insurance"}
-                </Text>
-              </TouchableOpacity>
-            </View>
+              )}
+              <Image
+                source={require("../assets/images/calendar-icon.png")}
+                className="w-6 h-6"
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+          </View>
 
-            <View className="justify-center items-center mb-4">
+          <View className="mb-8 mt-4">
+            <Text className="text-sm font-semibold mb-1 text-gray-600">
+              TOKEN ADDRESS (ERC-20)
+            </Text>
+            <TextInput
+              className="w-full p-3 border border-gray-300 rounded-lg text-base bg-gray-100 text-gray-500"
+              placeholder="0x..."
+              placeholderTextColor="#A0AEC0"
+              value={tokenAddress}
+              editable={false}
+            />
+          </View>
+
+          <Divider className="my-6" />
+
+          <Text className="text-xl font-bold mb-4 text-purple-700 text-center">
+            Geographic Query Details
+          </Text>
+          <View className="mb-4">
+            <Text className="text-sm font-semibold mb-1 text-gray-600">
+              SENSOR TYPE
+            </Text>
+            <View className="flex-row justify-between mt-2">
               <TouchableOpacity
-                onPress={() => {
-                  router.replace("/dashboard");
-                }}
-                className="mt-4"
+                className={`flex-1 p-3 mr-2 rounded-lg items-center ${
+                  sensorType === "s4agri:AmbientHumidity"
+                    ? "bg-purple-700 border-purple-700"
+                    : "bg-gray-100 border-gray-300"
+                } border`}
+                onPress={() => setSensorType("s4agri:AmbientHumidity")}
               >
-                <Text className="text-lg font-medium text-blue-500 underline">
-                  Go to Dashboard
+                <Text
+                  className={`font-semibold ${
+                    sensorType === "s4agri:AmbientHumidity"
+                      ? "text-white"
+                      : "text-gray-700"
+                  }`}
+                >
+                  Ambient Humidity
+                </Text>
+                <Text
+                  className={`text-xs ${
+                    sensorType === "s4agri:AmbientHumidity"
+                      ? "text-white/70"
+                      : "text-gray-500"
+                  }`}
+                >
+                  (s4agri)
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className={`flex-1 p-3 ml-2 rounded-lg items-center ${
+                  sensorType === "saref:Temperature"
+                    ? "bg-purple-700 border-purple-700"
+                    : "bg-gray-100 border-gray-300"
+                } border`}
+                onPress={() => setSensorType("saref:Temperature")}
+              >
+                <Text
+                  className={`font-semibold ${
+                    sensorType === "saref:Temperature"
+                      ? "text-white"
+                      : "text-gray-700"
+                  }`}
+                >
+                  Temperature
+                </Text>
+                <Text
+                  className={`text-xs ${
+                    sensorType === "saref:Temperature"
+                      ? "text-white/70"
+                      : "text-gray-500"
+                  }`}
+                >
+                  (saref)
                 </Text>
               </TouchableOpacity>
             </View>
-          </ScrollView>
-          <Modal
-            animationType="slide"
-            transparent={true}
-            visible={deploySmartInsuranceState !== ""}
-          >
-            <View className="flex-1 justify-center items-center bg-black/60">
-              <View className="bg-white p-6 rounded-lg shadow-xl items-center">
-                {deploySmartInsuranceState !== "failed" && (
-                  <ActivityIndicator
-                    size="large"
-                    color="#6b46c1"
-                    className="mb-4"
-                  />
-                )}
-                <Text className="text-lg font-bold text-gray-800 text-center">
-                  {deploySmartInsuranceState === "deploying"
-                    ? "Contract deploying"
-                    : deploySmartInsuranceState === "approving"
-                      ? "Approving"
-                      : deploySmartInsuranceState === "paying"
-                        ? "Depositing"
-                        : "Request has failed. Please retry"}
-                </Text>
-                {deploySmartInsuranceState !== "failed" ? (
-                  <Text className="font-light text-purple-700 text-center mt-2">
-                    Please wait, processing on blockchain...
-                  </Text>
-                ) : (
-                  <TouchableOpacity
-                    onPress={clearDeployStatus}
-                    className="rounded-full bg-purple-700 w-[100px] h-[30px] items-center justify-center mt-5"
-                  >
-                    <Text className="font-bold text-white text-lg">Close</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
+          </View>
+
+          <View className="mb-4">
+            <Text className="text-sm font-semibold mb-1 text-gray-600">
+              TARGET VALUE ({">"}=)
+            </Text>
+            <TextInput
+              className="w-full p-3 border border-purple-300 rounded-lg text-base text-gray-800 bg-gray-50 focus:border-purple-500"
+              placeholder="25"
+              placeholderTextColor="#A0AEC0"
+              value={targetValue}
+              onChangeText={setTargetValue}
+              keyboardType="numeric"
+            />
+          </View>
+
+          <View className="flex-row justify-between mb-4">
+            <View className="flex-1 mr-2">
+              <Text className="text-sm font-semibold mb-1 text-gray-600">
+                LATITUDE
+              </Text>
+              <TextInput
+                className="w-full p-3 border border-purple-300 rounded-lg text-base text-gray-800 bg-gray-50 focus:border-purple-500"
+                placeholder="e.g., 44.49"
+                placeholderTextColor="#A0AEC0"
+                value={latitude}
+                onChangeText={setLatitude}
+                keyboardType="numeric"
+              />
             </View>
-          </Modal>
-        </SafeAreaView>
-      </KeyboardAvoidingView>
+            <View className="flex-1 ml-2">
+              <Text className="text-sm font-semibold mb-1 text-gray-600">
+                LONGITUDE
+              </Text>
+              <TextInput
+                className="w-full p-3 border border-purple-300 rounded-lg text-base text-gray-800 bg-gray-50 focus:border-purple-500"
+                placeholder="e.g., 11.34"
+                placeholderTextColor="#A0AEC0"
+                value={longitude}
+                onChangeText={setLongitude}
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
+
+          <View className="mb-4">
+            <Text className="text-sm font-semibold mb-1 text-gray-600">
+              RADIUS (meters)
+            </Text>
+            <TextInput
+              className="w-full p-3 border border-purple-300 rounded-lg text-base text-gray-800 bg-gray-50 focus:border-purple-500"
+              placeholder="e.g., 500"
+              placeholderTextColor="#A0AEC0"
+              value={radius}
+              onChangeText={setRadius}
+              keyboardType="numeric"
+            />
+          </View>
+
+          {isLoading && (
+            <View className="flex-row items-center justify-center mb-4 mt-6">
+              <ActivityIndicator
+                size="small"
+                color="#6b46c1"
+                className="mr-2"
+              />
+              <Text className="text-lg text-purple-600 font-light">
+                Interacting with blockchain ...
+              </Text>
+            </View>
+          )}
+          {errorMessage && (
+            <View className="flex flex-row items-center justify-center mb-4 mt-6">
+              <Image
+                source={require("../assets/images/error-red.png")}
+                className="w-5 h-5"
+                resizeMode="contain"
+              />
+              <Text
+                className="text-red-500 text-center text-base mx-2"
+                onPress={() => {
+                  Alert.alert("Error", errorMessage);
+                }}
+              >
+                Error processing Smart Insurance
+              </Text>
+            </View>
+          )}
+          {successMessage && (
+            <View className="flex flex-row items-center justify-center mb-4 mt-6">
+              <Image
+                source={require("../assets/images/success-green.png")}
+                className="w-5 h-5"
+                resizeMode="contain"
+              />
+              <Text className="text-green-600 text-center text-base mx-2">
+                Smart Insurance created successfully!
+              </Text>
+            </View>
+          )}
+          <View className="justify-center items-center my-4">
+            <TouchableOpacity
+              onPress={handleSubmit}
+              className={`bg-purple-700 rounded-full w-[250px] h-[50px] items-center justify-center mt-5 ${isLoading ? "opacity-50" : ""}`}
+              disabled={isLoading}
+            >
+              <Text className="text-white font-bold text-xl">
+                {isLoading ? "Submitting..." : "Create Smart Insurance"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View className="justify-center items-center mb-4">
+            <TouchableOpacity
+              onPress={() => {
+                router.replace("/dashboard");
+              }}
+              className="mt-4"
+            >
+              <Text className="text-lg font-medium text-blue-500 underline">
+                Go to Dashboard
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={deploySmartInsuranceState !== ""}
+        >
+          <View className="flex-1 justify-center items-center bg-black/60">
+            <View className="bg-white p-6 rounded-lg shadow-xl items-center">
+              {deploySmartInsuranceState !== "failed" && (
+                <ActivityIndicator
+                  size="large"
+                  color="#6b46c1"
+                  className="mb-4"
+                />
+              )}
+              <Text className="text-lg font-bold text-gray-800 text-center">
+                {deploySmartInsuranceState === "deploying"
+                  ? "Contract deploying"
+                  : deploySmartInsuranceState === "approving"
+                    ? "Approving"
+                    : deploySmartInsuranceState === "paying"
+                      ? "Depositing"
+                      : "Request has failed. Please retry"}
+              </Text>
+              {deploySmartInsuranceState !== "failed" ? (
+                <Text className="font-light text-purple-700 text-center mt-2">
+                  Please wait, processing on blockchain...
+                </Text>
+              ) : (
+                <TouchableOpacity
+                  onPress={clearDeployStatus}
+                  className="rounded-full bg-purple-700 w-[100px] h-[30px] items-center justify-center mt-5"
+                >
+                  <Text className="font-bold text-white text-lg">Close</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </Modal>
+      </SafeAreaView>
     </TouchableWithoutFeedback>
   );
 }

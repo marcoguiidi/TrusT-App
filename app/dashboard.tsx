@@ -1,7 +1,14 @@
 import React from "react";
-import { View, Text, Image, Alert, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  Image,
+  Alert,
+  TouchableOpacity,
+  ImageSourcePropType,
+} from "react-native";
 import { useAuth } from "../context/AuthContext";
-import { useRouter } from "expo-router";
+import { Href, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
 
@@ -9,147 +16,115 @@ export default function DashboardScreen() {
   const { selectedAppRole, walletAddress, disconnectWallet } = useAuth();
   const router = useRouter();
 
-  if (selectedAppRole === "company") {
-    return (
-      <SafeAreaView className="bg-white h-full items-center">
-        <Image
-          source={require("../assets/images/company-home.jpeg")}
-          className="h-20 w-20 mt-5 mb-5"
-        />
-        <Text className="text-3xl text-blue-500 font-bold">Welcome!</Text>
-        {walletAddress && (
-          <Text
-            className="text-lg text-neutral-400 mb-4"
-            onPress={() => {
-              Alert.alert("Wallet Address", `${walletAddress}`, [
-                {
-                  text: "Copy",
-                  onPress: () => {
-                    Clipboard.setStringAsync(walletAddress);
-                  },
-                },
-                { text: "Close", style: "cancel" },
-              ]);
-            }}
-          >
-            Wallet: {walletAddress.substring(0, 6)}...
-            {walletAddress.substring(walletAddress.length - 4)}
-          </Text>
-        )}
-        <View className="rounded-lg mt-10 w-full items-center justify-center gap-7">
-          <TouchableOpacity
-            className="flex-row items-center rounded-full bg-blue-500 w-[280px] h-[80px]"
-            onPress={() => {
-              router.push("/browse");
-            }}
-          >
-            <Image
-              source={require("../assets/images/browse-icon.png")}
-              className="w-10 h-10 ml-5 mr-3"
-              resizeMode="contain"
-            />
-            <Text className="text-2xl text-white font-bold">
-              Browse Contracts
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            className="flex-row items-center rounded-full bg-blue-500 w-[280px] h-[80px]"
-            onPress={() => {
-              router.push("/create");
-            }}
-          >
-            <Image
-              source={require("../assets/images/contract-icon.png")}
-              className="w-10 h-10 ml-5 mr-3"
-              resizeMode="contain"
-            />
-            <Text className="text-2xl text-white font-bold">New Insurance</Text>
-          </TouchableOpacity>
-        </View>
+  const isCompany = selectedAppRole === "company";
+  const primaryColorClass = isCompany ? "text-blue-500" : "text-green-500";
+  const bgColorClass = isCompany ? "bg-blue-500" : "bg-green-500";
+  const iconSource = isCompany
+    ? require("../assets/images/company-home.jpeg")
+    : require("../assets/images/person-icon.png");
 
-        <TouchableOpacity
-          onPress={async () => {
-            await disconnectWallet();
-            router.replace("/");
-          }}
-          className="absolute bottom-10 right-7 flex-row justify-center items-center"
-        >
-          <Image
-            source={require("../assets/images/logout-icon.png")}
-            className="w-6 h-6 ml-5"
-          />
-          <Text className="text-lg font-bold text-neutral-400 underline">
-            Disconnect Wallet
-          </Text>
-        </TouchableOpacity>
-      </SafeAreaView>
-    );
-  } else if (selectedAppRole === "user") {
-    return (
-      <SafeAreaView className="bg-white h-full items-center">
-        <Image
-          source={require("../assets/images/person-icon.png")}
-          className="h-20 w-20 mt-5 mb-5"
-        />
-        <Text className="text-3xl text-green-500 font-bold">Welcome!</Text>
-        {walletAddress && (
-          <Text
-            className="text-lg text-neutral-400 mb-4"
-            onPress={() => {
-              Alert.alert("Wallet Address", `${walletAddress}`, [
-                {
-                  text: "Copy",
-                  onPress: () => {
-                    Clipboard.setStringAsync(walletAddress);
-                  },
-                },
-                { text: "Close", style: "cancel" },
-              ]);
-            }}
-          >
-            Wallet: {walletAddress.substring(0, 6)}...
-            {walletAddress.substring(walletAddress.length - 4)}
-          </Text>
-        )}
-        <View className="rounded-lg mt-10 w-full items-center justify-center gap-7">
-          <TouchableOpacity
-            className="flex-row items-center rounded-full bg-green-500 w-[280px] h-[80px]"
-            onPress={() => {
-              router.push("/browse");
-            }}
-          >
-            <Image
-              source={require("../assets/images/browse-icon.png")}
-              className="w-10 h-10 ml-5 mr-3"
-              resizeMode="contain"
-            />
-            <Text className="text-2xl text-white font-bold">
-              Browse Contracts
-            </Text>
-          </TouchableOpacity>
-        </View>
+  const handleDisconnect = async () => {
+    await disconnectWallet();
+    router.replace("/");
+  };
 
-        <TouchableOpacity
-          onPress={async () => {
-            await disconnectWallet();
-            router.replace("/");
-          }}
-          className="absolute bottom-10 right-7 flex-row justify-center items-center"
-        >
-          <Image
-            source={require("../assets/images/logout-icon.png")}
-            className="w-6 h-6 ml-5"
-          />
-          <Text className="text-lg font-bold text-neutral-400 underline">
-            Disconnect Wallet
-          </Text>
-        </TouchableOpacity>
+  const handleShowAddress = () => {
+    if (walletAddress) {
+      Alert.alert("Wallet Address", `${walletAddress}`, [
+        {
+          text: "Copy",
+          onPress: () => {
+            Clipboard.setStringAsync(walletAddress);
+          },
+        },
+        { text: "Close", style: "cancel" },
+      ]);
+    }
+  };
+
+  interface Button {
+    label: string;
+    icon: ImageSourcePropType;
+    path: Href<any>;
+  }
+
+  const buttons: Button[] = [
+    {
+      label: "Browse Contracts",
+      icon: require("../assets/images/browse-icon.png"),
+      path: "/browse",
+    },
+    ...(isCompany
+      ? [
+          {
+            label: "New Insurance",
+            icon: require("../assets/images/contract-icon.png"),
+            path: "/create",
+          },
+        ]
+      : []),
+  ];
+
+  if (!selectedAppRole) {
+    return (
+      <SafeAreaView className="bg-white h-full items-center justify-center">
+        <Text>Wallet not configured</Text>
       </SafeAreaView>
     );
   }
+
   return (
-    <SafeAreaView className="bg-white h-full items-center">
-      <Text>Wallet not configured</Text>
+    <SafeAreaView className="flex-1 bg-white pt-8">
+      <View className="flex-1 items-center px-6">
+        <Image
+          source={iconSource}
+          className="h-24 w-24 rounded-full mb-6 shadow-md"
+        />
+        <Text className={`text-4xl font-extrabold mb-2 ${primaryColorClass}`}>
+          Welcome!
+        </Text>
+        {walletAddress && (
+          <TouchableOpacity onPress={handleShowAddress} className="mb-8">
+            <Text className="text-base text-gray-500">
+              Wallet: {walletAddress.substring(0, 6)}...
+              {walletAddress.substring(walletAddress.length - 4)}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        <View className="w-full items-center gap-6 mt-12">
+          {buttons.map((button, index) => (
+            <TouchableOpacity
+              key={index}
+              className={`flex-row items-center justify-center rounded-2xl w-full h-[80px] shadow-lg ${bgColorClass}`}
+              onPress={() => router.push(button.path)}
+            >
+              <Image
+                source={button.icon}
+                className="w-10 h-10 mr-4"
+                resizeMode="contain"
+              />
+              <Text className="text-2xl text-white font-bold">
+                {button.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <TouchableOpacity
+          onPress={handleDisconnect}
+          className="flex-row items-center justify-center mt-auto mb-10"
+        >
+          <Image
+            source={require("../assets/images/logout-icon.png")}
+            className="w-6 h-6 mr-2"
+            resizeMode="contain"
+          />
+          <Text className="text-lg font-bold text-gray-400 underline">
+            Disconnect Wallet
+          </Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }

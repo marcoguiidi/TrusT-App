@@ -27,6 +27,7 @@ interface SmartInsuranceDetails {
   payoutAmount: string;
   tokenAddress: string;
   currentStatus: number;
+  expirationTimestamp: number;
 }
 
 const StatusMap: { [key: number]: string } = {
@@ -34,6 +35,7 @@ const StatusMap: { [key: number]: string } = {
   1: "Active",
   2: "Claimed",
   3: "Cancelled",
+  4: "Expired",
 };
 
 const zoniaStates = [
@@ -163,11 +165,8 @@ export default function BrowseScreen() {
         1,
         10,
       );
-      console.log("prova aaaaaaaaa", result);
       setResultZonia(result);
-      console.log("prova bbbbbbb", resultZonia);
     } catch (e: any) {
-      console.error("lalalalalala", e);
       setResultZonia(e.toString());
     } finally {
       setIsFetchingZonia(false);
@@ -259,20 +258,33 @@ export default function BrowseScreen() {
         }}
       >
         <View
-          className={`w-[350px] h-[60px] my-5 rounded-lg flex-row items-center justify-between px-4 border-2 ${
-            selectedAppRole === "user" ? "border-green-500" : "border-blue-500"
+          className={`w-[350px] my-2 p-4 rounded-xl flex-row items-center justify-between shadow-lg ${
+            selectedAppRole === "user" ? "bg-green-50" : "bg-blue-50"
           }`}
         >
-          <Text className={`font-bold`}>
-            {`${address.slice(0, 6)}...${address.slice(-4)}`}
-          </Text>
-          <Text
-            className={`text-sm ${
-              selectedAppRole === "user" ? "text-green-700" : "text-blue-700"
-            }`}
-          >
-            Show Details
-          </Text>
+          <View className="flex-row items-center">
+            <Image
+              source={
+                selectedAppRole === "user"
+                  ? require("../assets/images/person-icon.png")
+                  : require("../assets/images/company-home.jpeg")
+              }
+              className="w-8 h-8 mr-3"
+              resizeMode="contain"
+            />
+            <Text className="font-bold text-base text-gray-800">
+              {`${address.slice(0, 6)}...${address.slice(-4)}`}
+            </Text>
+          </View>
+          <View className="flex-row items-center">
+            <Text
+              className={`text-sm font-semibold mr-2 ${
+                selectedAppRole === "user" ? "text-green-700" : "text-blue-700"
+              }`}
+            >
+              Details
+            </Text>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -490,11 +502,12 @@ export default function BrowseScreen() {
                     Status:
                   </Text>
                   <Text
-                    className={`text-base flex-2 text-right ${
+                    className={`text-base flex-2 font-bold text-right ${
                       StatusMap[details.currentStatus] == "Active"
                         ? "text-green-700"
                         : `${
-                            StatusMap[details.currentStatus] == "Cancelled"
+                            StatusMap[details.currentStatus] == "Cancelled" ||
+                            StatusMap[details.currentStatus] == "Expired"
                               ? "text-red-700"
                               : `${
                                   StatusMap[details.currentStatus] == "Claimed"
@@ -505,6 +518,18 @@ export default function BrowseScreen() {
                     }`}
                   >
                     {StatusMap[details.currentStatus] || "Unknown"}
+                  </Text>
+                </View>
+
+                <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
+                  <Text className="text-base font-semibold text-purple-700 flex-1">
+                    Expiration (MM/DD/YYYY):
+                  </Text>
+                  <Text className="text-base text-gray-700 flex-2 text-right">
+                    {details &&
+                      new Date(
+                        details.expirationTimestamp * 1000,
+                      ).toLocaleDateString()}
                   </Text>
                 </View>
 
@@ -539,12 +564,16 @@ export default function BrowseScreen() {
                   // walletAddress?.toLowerCase() === details.userWallet.toLowerCase() &&
                   <TouchableOpacity
                     onPress={handleSubmitZonia}
-                    className={`mt-5 bg-green-500 self-center rounded-full w-[200px] h-[45px] items-center justify-center`}
+                    className={`mt-5 bg-green-500 self-center rounded-full w-[200px] h-[45px] items-center justify-center ${isFetchingZonia ? "opacity-50" : ""}`}
                     disabled={isFetchingZonia}
                   >
-                    <Text className="text-white font-bold text-lg">
-                      Check data
-                    </Text>
+                    {isFetchingZonia ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <Text className="text-white font-bold text-lg">
+                        Check data
+                      </Text>
+                    )}
                   </TouchableOpacity>
                 )}
               </ScrollView>

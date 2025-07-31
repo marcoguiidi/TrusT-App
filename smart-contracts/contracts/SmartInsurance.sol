@@ -20,6 +20,7 @@ struct InsuranceInitParams {
     address companyIndividualWalletInfo;
     address zoniaGateAddress;
     address zoniaTokenAddress;
+    uint256 expirationTimestamp;
 }
 
 contract SmartInsurance is Ownable {
@@ -39,7 +40,9 @@ contract SmartInsurance is Ownable {
 
     bool public conditionsSatisfied;
 
-    enum Status { Pending, Active, Claimed, Cancelled }
+    uint256 public expirationTimestamp;
+
+    enum Status { Pending, Active, Claimed, Cancelled, Expired }
     Status public currentStatus;
 
     IGate public zoniaGate;
@@ -63,6 +66,7 @@ contract SmartInsurance is Ownable {
         require(params.tokenAddress != address(0), "Invalid token address");
         require(params.userIndividualWalletInfo != address(0), "Invalid user IndividualWalletInfo address");
         require(params.companyIndividualWalletInfo != address(0), "Invalid company IndividualWalletInfo address");
+        require(params.expirationTimestamp > block.timestamp, "Expiration must be in the future");
 
 
         userWallet = params.userWallet;
@@ -80,6 +84,8 @@ contract SmartInsurance is Ownable {
         zoniaTokenAddress = params.zoniaTokenAddress;
 
         conditionsSatisfied = false;
+        
+        expirationTimestamp = params.expirationTimestamp;
 
         zoniaGate = IGate(params.zoniaGateAddress);
 

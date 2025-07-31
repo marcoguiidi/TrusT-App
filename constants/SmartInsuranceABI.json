@@ -67,6 +67,11 @@
             "internalType": "address",
             "name": "zoniaTokenAddress",
             "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "expirationTimestamp",
+            "type": "uint256"
           }
         ],
         "internalType": "struct InsuranceInitParams",
@@ -316,6 +321,19 @@
     "name": "executePayout",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "expirationTimestamp",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {

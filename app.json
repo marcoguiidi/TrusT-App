@@ -63,7 +63,8 @@
       "typedRoutes": true
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-font"
     ],
     "extra": {
       "walletconnectProjectId": "6115e11a1e8e0e40048cf0fd64269848"
