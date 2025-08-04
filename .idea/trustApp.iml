@@ -9,6 +9,7 @@
       <excludeFolder url="file://$MODULE_DIR$/android" />
       <excludeFolder url="file://$MODULE_DIR$/smart-contracts/artifacts" />
       <excludeFolder url="file://$MODULE_DIR$/smart-contracts/cache" />
+      <excludeFolder url="file://$MODULE_DIR$/ios" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

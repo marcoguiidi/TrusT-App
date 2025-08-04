@@ -84,7 +84,7 @@ contract SmartInsurance is Ownable {
         zoniaTokenAddress = params.zoniaTokenAddress;
 
         conditionsSatisfied = false;
-        
+
         expirationTimestamp = params.expirationTimestamp;
 
         zoniaGate = IGate(params.zoniaGateAddress);

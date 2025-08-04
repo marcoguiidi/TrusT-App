@@ -9,12 +9,9 @@ import {
   TextInput,
   TouchableWithoutFeedback,
   Keyboard,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   Modal,
 } from "react-native";
-import { Picker } from "@react-native-picker/picker";
 import { useAuth } from "../context/AuthContext";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -22,6 +19,9 @@ import { ethers } from "ethers";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { format } from "date-fns";
 import { Divider } from "react-native-paper";
+
+import MapView, { Marker, Circle } from "react-native-maps";
+import * as Location from "expo-location";
 
 export default function CreateScreen() {
   const {
@@ -50,7 +50,56 @@ export default function CreateScreen() {
   const [errorMessage, setErrorMessage] = useState<string>("");
 
   const [expirationDate, setExpirationDate] = useState<Date>(new Date());
-  const [showDatePicker, setShowDatePicker] = useState<boolean>(false); // Aggiungi questo stato
+  const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
+
+  const [region, setRegion] = useState({
+    latitude: 44.4948,
+    longitude: 11.3426,
+    latitudeDelta: 0.0922,
+    longitudeDelta: 0.0421,
+  });
+  const [markerPosition, setMarkerPosition] = useState({
+    latitude: 44.4948,
+    longitude: 11.3426,
+  });
+
+  const [locationPermissionStatus, setLocationPermissionStatus] = useState<
+    "undetermined" | "granted" | "denied"
+  >("undetermined");
+
+  useEffect(() => {
+    const fetchLocation = async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      setLocationPermissionStatus(status);
+
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission denied",
+          "Permission to access location was denied. The map will show a default location.",
+        );
+        return;
+      }
+
+      let currentLocation = await Location.getCurrentPositionAsync({});
+
+      const newPosition = {
+        latitude: currentLocation.coords.latitude,
+        longitude: currentLocation.coords.longitude,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
+      };
+
+      setRegion(newPosition);
+      setMarkerPosition({
+        latitude: currentLocation.coords.latitude,
+        longitude: currentLocation.coords.longitude,
+      });
+      setLatitude(currentLocation.coords.latitude.toString());
+      setLongitude(currentLocation.coords.longitude.toString());
+    };
+
+    fetchLocation();
+  }, []);
 
   useEffect(() => {
     const fetchTokenAddress = async () => {
@@ -62,6 +111,12 @@ export default function CreateScreen() {
 
     fetchTokenAddress();
   }, [getMyTokenContract]);
+
+  const handleMapPress = (e: any) => {
+    setMarkerPosition(e.nativeEvent.coordinate);
+    setLatitude(e.nativeEvent.coordinate.latitude.toString());
+    setLongitude(e.nativeEvent.coordinate.longitude.toString());
+  };
 
   const handleSubmit = async () => {
     setErrorMessage("");
@@ -377,32 +432,33 @@ export default function CreateScreen() {
             />
           </View>
 
-          <View className="flex-row justify-between mb-4">
-            <View className="flex-1 mr-2">
-              <Text className="text-sm font-semibold mb-1 text-gray-600">
-                LATITUDE
-              </Text>
-              <TextInput
-                className="w-full p-3 border border-purple-300 rounded-lg text-base text-gray-800 bg-gray-50 focus:border-purple-500"
-                placeholder="e.g., 44.49"
-                placeholderTextColor="#A0AEC0"
-                value={latitude}
-                onChangeText={setLatitude}
-                keyboardType="numeric"
-              />
-            </View>
-            <View className="flex-1 ml-2">
-              <Text className="text-sm font-semibold mb-1 text-gray-600">
-                LONGITUDE
-              </Text>
-              <TextInput
-                className="w-full p-3 border border-purple-300 rounded-lg text-base text-gray-800 bg-gray-50 focus:border-purple-500"
-                placeholder="e.g., 11.34"
-                placeholderTextColor="#A0AEC0"
-                value={longitude}
-                onChangeText={setLongitude}
-                keyboardType="numeric"
-              />
+          <View className="flex justify-between mb-4">
+            <Text className="text-sm font-semibold mb-1 text-gray-600">
+              SELECT LOCATION & RADIUS
+            </Text>
+            <View className="w-full h-80 border border-purple-300 rounded-lg overflow-hidden mb-4">
+              <MapView
+                style={{ flex: 1 }}
+                region={region}
+                onRegionChangeComplete={setRegion}
+                onPress={handleMapPress}
+                showsUserLocation={true}
+              >
+                <Marker
+                  coordinate={markerPosition}
+                  draggable
+                  onDragEnd={(e: any) => handleMapPress(e)}
+                />
+                {radius && (
+                  <Circle
+                    center={markerPosition}
+                    radius={parseFloat(radius.replace(",", ".") || "0")}
+                    fillColor="rgba(107, 70, 193, 0.3)"
+                    strokeColor="rgba(107, 70, 193, 0.8)"
+                    strokeWidth={2}
+                  />
+                )}
+              </MapView>
             </View>
           </View>
 

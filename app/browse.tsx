@@ -15,6 +15,7 @@ import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
 import { AlertCircle, CheckCircle, Clock } from "lucide-react-native";
+import MapView, { Circle, Marker } from "react-native-maps";
 
 interface SmartInsuranceDetails {
   userWallet: string;
@@ -82,6 +83,13 @@ export default function BrowseScreen() {
   const currentIndex = zoniaRequestState
     ? zoniaStates.indexOf(zoniaRequestState)
     : -1;
+
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [mapData, setMapData] = useState<{
+    latitude: number;
+    longitude: number;
+    radius: number;
+  } | null>(null);
 
   useEffect(() => {
     setIsLoading(true);
@@ -479,9 +487,41 @@ export default function BrowseScreen() {
                   <Text className="text-base font-semibold text-purple-700 flex-1">
                     Geo Data:
                   </Text>
-                  <Text className="text-base text-gray-700 flex-2 text-right">
-                    {details.geoloc}
-                  </Text>
+                  {details && (
+                    <TouchableOpacity
+                      className="p-2 rounded-full self-center"
+                      onPress={() => {
+                        const regex =
+                          /lat: ([\d.-]+), lon: ([\d.-]+), radius: ([\d.-]+) m/;
+                        const match = details.geoloc.match(regex);
+
+                        if (match) {
+                          const lat = parseFloat(match[1]);
+                          const lon = parseFloat(match[2]);
+                          const rad = parseFloat(match[3]);
+
+                          setMapData({
+                            latitude: lat,
+                            longitude: lon,
+                            radius: rad,
+                          });
+                          setShowDetailsModal(false);
+                          setShowMapModal(true);
+                        } else {
+                          Alert.alert(
+                            "Errore",
+                            "Dati geografici non validi. Controlla il formato.",
+                          );
+                        }
+                      }}
+                    >
+                      <Image
+                        source={require("../assets/images/purple_map_icon.png")}
+                        resizeMode="contain"
+                        className="w-6 h-6"
+                      />
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
@@ -689,6 +729,75 @@ export default function BrowseScreen() {
                   <Text className="text-white font-bold text-lg">Close</Text>
                 </TouchableOpacity>
               )}
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showMapModal}
+        onRequestClose={() => {
+          setShowMapModal(false);
+          setMapData(null);
+          setShowDetailsModal(true);
+        }}
+      >
+        <View className="flex-1 justify-center items-center bg-black/60">
+          <View className="m-5 bg-white rounded-2xl p-6 items-center shadow-xl w-[90%] h-[70%]">
+            <Text className="text-2xl font-bold text-gray-700 mb-4">
+              Location Details
+            </Text>
+            {mapData ? (
+              <View className="w-full h-4/5">
+                <MapView
+                  style={{
+                    flex: 1,
+                    borderRadius: 12,
+                    borderColor: "#d1d5db",
+                    borderWidth: 1,
+                  }}
+                  initialRegion={{
+                    latitude: mapData.latitude,
+                    longitude: mapData.longitude,
+                    latitudeDelta: 0.05,
+                    longitudeDelta: 0.05,
+                  }}
+                >
+                  <Marker
+                    coordinate={{
+                      latitude: mapData.latitude,
+                      longitude: mapData.longitude,
+                    }}
+                  />
+                  <Circle
+                    center={{
+                      latitude: mapData.latitude,
+                      longitude: mapData.longitude,
+                    }}
+                    radius={mapData.radius}
+                    fillColor="rgba(107, 70, 193, 0.3)"
+                    strokeColor="rgba(107, 70, 193, 0.8)"
+                    strokeWidth={2}
+                  />
+                </MapView>
+              </View>
+            ) : (
+              <View className="w-full h-4/5 items-center justify-center">
+                <ActivityIndicator size="large" color="#6b46c1" />
+                <Text className="text-gray-600 mt-4">Caricamento mappa...</Text>
+              </View>
+            )}
+            <TouchableOpacity
+              className="mt-5 bg-purple-600 px-6 py-3 rounded-full shadow-md shadow-purple-400"
+              onPress={() => {
+                setShowMapModal(false);
+                setMapData(null);
+                setShowDetailsModal(true);
+              }}
+            >
+              <Text className="text-white font-bold text-lg">Close</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>

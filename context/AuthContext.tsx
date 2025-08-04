@@ -193,7 +193,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const initEthers = async () => {
-      console.log("initEthers iniziato");
       setIsCoreContractsReady(false);
       setWalletConnected(false);
       userCompanyRegistryContractRef.current = null;
@@ -210,7 +209,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       setWalletConnected(true);
-      console.log("Wallet connesso. Inizializzo provider e contratti.");
 
       const ngrokUrl = providerMetadata.url;
       if (!ngrokUrl) {
@@ -220,27 +218,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsCoreContractsReady(false);
         return;
       }
-      console.log(`URL di ngrok rilevato: ${ngrokUrl}`);
 
       let localProvider: JsonRpcProvider | null = null;
       let localChainId: number | null = null;
       let localRegistryContract: Contract | null = null;
 
       try {
-        console.log("Inizializzazione JsonRpcProvider con URL ngrok...");
         localProvider = new JsonRpcProvider(ngrokUrl);
         ethersProviderRef.current = localProvider;
-        console.log(
-          "JsonRpcProvider inizializzato.",
-          ethersProviderRef.current,
-        );
-
         const network = await localProvider.getNetwork();
         localChainId = Number(network.chainId);
         setCurrentChainId(localChainId);
-        console.log(
-          `Provider Network: ${network.name} (Chain ID: ${localChainId})`,
-        );
 
         const currentContractAddresses =
           chainIdToContractAddresses[localChainId];
@@ -263,7 +251,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             localProvider,
           );
           myTokenContractRef.current = tokenContract;
-          console.log("TulToken Contract initialized for reads.");
         } else {
           console.warn(
             "TulToken address not configured or is zero address. Cannot interact with token.",
@@ -282,9 +269,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           );
           userCompanyRegistryContractRef.current = localRegistryContract;
           setIsCoreContractsReady(true);
-          console.log(
-            "UserCompanyRegistry Contract initialized and isCoreContractsReady set to true.",
-          );
         } else {
           console.warn(
             "UserCompanyRegistry address not configured or is zero address. Cannot interact with central registry.",
@@ -313,9 +297,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               localProvider,
             );
             individualWalletInfoContractRef.current = individualContract;
-            console.log(
-              `IndividualWalletInfo found for ${address} at: ${infoContractAddress}`,
-            );
 
             const typeOnChain = await getWalletTypeOnChain(
               address,
@@ -330,7 +311,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setIndividualWalletInfoAddress(null);
             individualWalletInfoContractRef.current = null;
             setWalletTypeOnChain(null);
-            console.log(`No IndividualWalletInfo found for ${address}.`);
           }
         } else {
           console.error(
@@ -401,7 +381,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       myTokenContractRef.current = null;
       individualWalletInfoContractRef.current = null;
       setCurrentChainId(null);
-      console.log("All local and in-memory data cleared.");
     } catch (e) {
       console.error("Error clearing all data:", e);
     }
@@ -433,10 +412,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      console.log(
-        `DEBUG: Tentativo di registrazione completa per l'indirizzo: ${address} come ${type}.`,
-      );
-
       const registryContractRead = new Contract(
         USER_COMPANY_REGISTRY_ADDRESS_CURRENT,
         USER_COMPANY_REGISTRY_ABI,
@@ -460,10 +435,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           [],
         );
 
-        console.log(
-          `DEBUG: Chiamando wcProvider.request() per registerAndCreateIndividualWalletInfo...`,
-        );
-
         const createTxHash = await (
           wcProvider as IWalletConnectEip1193Provider
         ).request({
@@ -477,17 +448,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             },
           ],
         });
-        console.log(
-          `DEBUG: Transazione di creazione inviata. Hash: ${createTxHash}`,
-        );
         const receipt =
           await ethersProviderRef.current.waitForTransaction(createTxHash);
         if (!receipt || receipt.status == 0) {
           throw new Error("Create IWInfo failed");
         }
-        console.log(
-          `DEBUG: IndividualWalletInfo creato e proprietà trasferita con successo tramite Registry.`,
-        );
 
         infoAddress =
           await registryContractRead.getIndividualWalletInfoAddress(address);
@@ -496,11 +461,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             "Errore: Indirizzo IndividualWalletInfo non recuperato dopo la creazione.",
           );
         }
-        console.log(`DEBUG: Nuovo IndividualWalletInfo a: ${infoAddress}`);
       } else {
-        console.log(
-          `DEBUG: IndividualWalletInfo esistente per ${address} trovato a: ${infoAddress}.`,
-        );
       }
 
       setIndividualWalletInfoAddress(infoAddress);
@@ -526,14 +487,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         individualWalletInfoContractRef.current as Contract
       ).getWalletType();
 
-      console.log(
-        `DEBUG: Tipo di wallet attuale sul contratto: ${currentTypeOnContract} (None=0, User=1, Company=2). Tipo da impostare: ${solidityType}.`,
-      );
-
       if (currentTypeOnContract == solidityType) {
-        console.log(
-          `DEBUG: Il tipo di wallet ${type} è già impostato. Nessuna azione necessaria.`,
-        );
       } else if (currentTypeOnContract != SolidityWalletType.None) {
         console.warn(
           `WARN: Il tipo di wallet sul contratto è ${currentTypeOnContract} ma l'app ha selezionato ${type}. Impossibile modificare il tipo.`,
@@ -1297,10 +1251,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      console.log(
-        `Attempting to fetch details for SmartInsurance at: ${insuranceAddress}`,
-      );
-
       const userWallet = await smartInsuranceContract.userWallet();
       const companyWallet = await smartInsuranceContract.companyWallet();
       const premiumAmountWei = await smartInsuranceContract.premiumAmount();
@@ -1332,10 +1282,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         expirationTimestamp: Number(expirationTimestamp),
       };
 
-      console.log(
-        `Successfully fetched details for SmartInsurance ${insuranceAddress}:`,
-        details,
-      );
       return details;
     } catch (error: any) {
       console.error(
