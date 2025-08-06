@@ -435,7 +435,6 @@ export default function CreateScreen() {
 
           <View className="flex justify-between mb-4">
             <Text className="text-sm font-semibold mb-1 text-gray-600">
-              SELECT LOCATION & RADIUS
               SELECT LOCATION
             </Text>
             <View className="w-full h-80 border border-purple-300 rounded-lg overflow-hidden mb-4">
