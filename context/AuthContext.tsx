@@ -586,9 +586,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         ethersProviderRef.current,
       );
       const premiumAmount = await smartInsuranceContractRead.premiumAmount();
-      console.log(
-        `Premium amount to pay: ${ethers.formatEther(premiumAmount)} TulToken`,
-      );
 
       console.log(
         `Sending approval transaction for SmartInsurance ${insuranceAddress} to spend ${ethers.formatEther(premiumAmount)} TulToken...`,
@@ -677,11 +674,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!receipt || receipt.status == 0) {
         throw new Error("PayPremium transaction failed.");
       }
-
-      console.log(
-        "Premium paid successfully and confirmed. Policy should now be Active!",
-        receipt,
-      );
     } catch (e: any) {
       console.error("Error paying SmartInsurance premium:", e);
       if (e.reason) console.error("Revert reason:", e.reason);
@@ -1010,8 +1002,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!receipt || receipt.status == 0) {
         throw new Error("executePayout transaction failed.");
       }
-
-      console.log("Payout received succesfully!", receipt);
     } catch (e: any) {
       console.error("Error receiving SmartInsurance payout:", e);
       if (e.reason) console.error("Revert reason:", e.reason);

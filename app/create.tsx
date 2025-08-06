@@ -11,6 +11,7 @@ import {
   Keyboard,
   ScrollView,
   Modal,
+  Platform,
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { useRouter } from "expo-router";
@@ -20,7 +21,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { format } from "date-fns";
 import { Divider } from "react-native-paper";
 
-import MapView, { Marker, Circle } from "react-native-maps";
+import MapView, { Marker, Circle, PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
 
 export default function CreateScreen() {
@@ -443,6 +444,9 @@ export default function CreateScreen() {
                 onRegionChangeComplete={setRegion}
                 onPress={handleMapPress}
                 showsUserLocation={true}
+                {...(Platform.OS === "android" && {
+                  provider: PROVIDER_GOOGLE,
+                })}
               >
                 <Marker
                   coordinate={markerPosition}

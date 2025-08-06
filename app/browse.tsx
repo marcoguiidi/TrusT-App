@@ -9,13 +9,14 @@ import {
   ScrollView,
   ActivityIndicator,
   Modal,
+  Platform,
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
 import { AlertCircle, CheckCircle, Clock } from "lucide-react-native";
-import MapView, { Circle, Marker } from "react-native-maps";
+import MapView, { Circle, Marker, PROVIDER_GOOGLE } from "react-native-maps";
 
 interface SmartInsuranceDetails {
   userWallet: string;
@@ -111,8 +112,9 @@ export default function BrowseScreen() {
           status,
         );
         setInsuranceAddresses(addresses);
-      } catch (e) {
+      } catch (e: any) {
         console.error("Error fetching smart insurances:", e);
+        Alert.alert("Error", e);
         setInsuranceAddresses([]);
       } finally {
         setIsLoading(false);
@@ -143,7 +145,7 @@ export default function BrowseScreen() {
       } catch (e) {
         console.error("Error fetching detailed insurance:", e);
         setDetails(null);
-        Alert.alert("Errore", "Impossibile caricare i dettagli della polizza.");
+        Alert.alert("Error", "Smart Insurance details not available.");
       } finally {
         setIsModalLoading(false);
       }
@@ -200,6 +202,7 @@ export default function BrowseScreen() {
       setKey((prev) => prev + 1);
     } catch (e: any) {
       console.error("Error:", e);
+      Alert.alert("Error", e);
     }
   };
 
@@ -229,6 +232,7 @@ export default function BrowseScreen() {
       setKey((prev) => prev + 1);
     } catch (error: any) {
       console.error("Error:", error);
+      Alert.alert("Error", error);
     } finally {
       setIsPayingPremium(false);
     }
@@ -241,6 +245,7 @@ export default function BrowseScreen() {
       setKey((prev) => prev + 1);
     } catch (error: any) {
       console.error("Error:", error);
+      Alert.alert("Error", error);
     }
   };
 
@@ -763,6 +768,9 @@ export default function BrowseScreen() {
                     latitudeDelta: 0.05,
                     longitudeDelta: 0.05,
                   }}
+                  {...(Platform.OS === "android" && {
+                    provider: PROVIDER_GOOGLE,
+                  })}
                 >
                   <Marker
                     coordinate={{

@@ -13,6 +13,9 @@
     },
     "ios": {
       "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey":  "process.env.EXPO_PUBLIC_Maps_API_KEY"
+      },
       "jsEngine": "jsc",
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
@@ -29,6 +32,11 @@
       "bundleIdentifier": "com.trust.trustSmart"
     },
     "android": {
+      "config": {
+        "googleMaps": {
+          "apiKey": "process.env.EXPO_PUBLIC_Maps_API_KEY"
+        }
+      },
       "jsEngine": "jsc",
       "package": "com.trust.trustSmart",
       "intentFilters": [
