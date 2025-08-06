@@ -768,6 +768,7 @@ export default function BrowseScreen() {
                     latitudeDelta: 0.05,
                     longitudeDelta: 0.05,
                   }}
+                  mapType={"hybrid"}
                   {...(Platform.OS === "android" && {
                     provider: PROVIDER_GOOGLE,
                   })}
