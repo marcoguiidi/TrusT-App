@@ -1513,7 +1513,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const inputData: InputRequest = {
-        query: query, //'{ "topic" : "zonia:PriceEthereum" }',
+        query: '{ "topic" : "zonia:PriceEthereum" }', //query
         chainParams: chainParams,
         ko: ko,
         ki: ki,

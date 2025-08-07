@@ -403,278 +403,317 @@ export default function BrowseScreen() {
           setShowDetailsModal(false);
         }}
       >
-        <View className="flex-1 justify-center items-center bg-black/60">
-          <View className="m-5 bg-white rounded-2xl p-9 items-center shadow-xl w-[90%] max-h-[80%] justify-center">
-            <Text className="text-2xl font-bold text-gray-700">
-              Smart Insurance Details
-            </Text>
-            <TouchableOpacity
-              className="self-center mb-5"
-              onPress={() => copyToClipboard(detailedInsuranceAddress)}
-            >
-              <Text className="text-base self-center text-gray-500 underline flex-2 text-right">
-                {`${detailedInsuranceAddress.slice(0, 8)}...${detailedInsuranceAddress.slice(-6)}`}
-              </Text>
-            </TouchableOpacity>
-
-            {isModalLoading ? (
-              <ActivityIndicator
-                size="large"
-                color="#6b46c1"
-                className="mt-5"
-              />
-            ) : details ? (
-              <ScrollView className="w-full mb-5">
-                {selectedAppRole === "user" ? (
-                  <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
-                    <Text className="text-base font-semibold text-purple-700 flex-1">
-                      Company Wallet:
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => copyToClipboard(details.companyWallet)}
-                    >
-                      <Text className="text-base text-blue-500 underline flex-2 text-right">
-                        {`${details.companyWallet.slice(0, 8)}...${details.companyWallet.slice(-6)}`}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
-                    <Text className="text-base font-semibold text-purple-700 flex-1">
-                      User Wallet:
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => copyToClipboard(details.userWallet)}
-                    >
-                      <Text className="text-base text-blue-500 underline flex-2 text-right">
-                        {`${details.userWallet.slice(0, 8)}...${details.userWallet.slice(-6)}`}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-                <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
-                  <Text className="text-base font-semibold text-purple-700 flex-1">
-                    Premium Amount:
-                  </Text>
-                  <Text className="text-base text-gray-700 flex-2 text-right">
-                    {details.premiumAmount} (TTK)
-                  </Text>
-                </View>
-
-                <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
-                  <Text className="text-base font-semibold text-purple-700 flex-1">
-                    Payout Amount:
-                  </Text>
-                  <Text className="text-base text-gray-700 flex-2 text-right">
-                    {details.payoutAmount} (TTK)
-                  </Text>
-                </View>
-
-                <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
-                  <Text className="text-base font-semibold text-purple-700 flex-1">
-                    Sensor:
-                  </Text>
-                  <Text className="text-base text-gray-700 flex-2 text-right">
-                    {details.sensor}
-                  </Text>
-                </View>
-
-                <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
-                  <Text className="text-base font-semibold text-purple-700 flex-1">
-                    Target Value:
-                  </Text>
-                  <Text className="text-base text-gray-700 flex-2 text-right">
-                    {details.target_value}
-                  </Text>
-                </View>
-
-                <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
-                  <Text className="text-base font-semibold text-purple-700 flex-1">
-                    Geo Data:
-                  </Text>
-                  {details && (
-                    <TouchableOpacity
-                      className="p-2 rounded-full self-center"
-                      onPress={() => {
-                        const regex =
-                          /lat: ([\d.-]+), lon: ([\d.-]+), radius: ([\d.-]+) m/;
-                        const match = details.geoloc.match(regex);
-
-                        if (match) {
-                          const lat = parseFloat(match[1]);
-                          const lon = parseFloat(match[2]);
-                          const rad = parseFloat(match[3]);
-
-                          setMapData({
-                            latitude: lat,
-                            longitude: lon,
-                            radius: rad,
-                          });
-                          setShowDetailsModal(false);
-                          setShowMapModal(true);
-                        } else {
-                          Alert.alert(
-                            "Errore",
-                            "Dati geografici non validi. Controlla il formato.",
-                          );
-                        }
-                      }}
-                    >
-                      <Image
-                        source={require("../assets/images/purple_map_icon.png")}
-                        resizeMode="contain"
-                        className="w-6 h-6"
-                      />
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
-                  <Text className="text-base font-semibold text-purple-700 flex-1">
-                    Token Address:
+        <View className="flex-1 justify-center items-center bg-black/60 p-4">
+          <View className="bg-white rounded-3xl p-6 items-center shadow-2xl w-full max-w-md max-h-[90%]">
+            <ScrollView className="w-full">
+              <View className="items-center mb-6">
+                <Text className="text-3xl font-extrabold text-purple-800 text-center mb-2">
+                  Smart Insurance Details
+                </Text>
+                <View className="flex-row items-center bg-gray-100 rounded-full px-4 py-2">
+                  <Text className="text-sm font-medium text-gray-600 mr-2">
+                    Contract ID:
                   </Text>
                   <TouchableOpacity
-                    onPress={() => copyToClipboard(details.tokenAddress)}
+                    className="flex-row items-center"
+                    onPress={() => copyToClipboard(detailedInsuranceAddress)}
                   >
-                    <Text className="text-base text-blue-500 underline flex-2 text-right">
-                      {`${details.tokenAddress.slice(0, 8)}...${details.tokenAddress.slice(-6)}`}
+                    <Text className="text-sm font-bold text-purple-600 underline">
+                      {`${detailedInsuranceAddress.slice(0, 6)}...${detailedInsuranceAddress.slice(-4)}`}
                     </Text>
                   </TouchableOpacity>
                 </View>
+              </View>
 
-                <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
-                  <Text className="text-base font-semibold text-purple-700 flex-1">
-                    Status:
-                  </Text>
-                  <Text
-                    className={`text-base flex-2 font-bold text-right ${
-                      StatusMap[details.currentStatus] == "Active"
-                        ? "text-green-700"
-                        : `${
-                            StatusMap[details.currentStatus] == "Cancelled" ||
-                            StatusMap[details.currentStatus] == "Expired"
-                              ? "text-red-700"
-                              : `${
-                                  StatusMap[details.currentStatus] == "Claimed"
-                                    ? "text-yellow-500"
-                                    : "text-gray-700"
-                                }`
-                          }`
-                    }`}
-                  >
-                    {StatusMap[details.currentStatus] || "Unknown"}
-                  </Text>
-                </View>
-
-                <View className="flex-row justify-between items-center mb-2.5 py-1.5 border-b border-gray-200">
-                  <Text className="text-base font-semibold text-purple-700 flex-1">
-                    Expiration (MM/DD/YYYY):
-                  </Text>
-                  <Text className="text-base text-gray-700 flex-2 text-right">
-                    {details &&
-                      new Date(
-                        details.expirationTimestamp * 1000,
-                      ).toLocaleDateString()}
-                  </Text>
-                </View>
-
-                {details.currentStatus === 0 &&
-                  walletAddress?.toLowerCase() ===
-                    details.userWallet.toLowerCase() && (
-                    <TouchableOpacity
-                      onPress={handlePayPremium}
-                      className={`mt-5 bg-green-500 self-center rounded-full w-[200px] h-[45px] items-center justify-center ${isPayingPremium ? "opacity-50" : ""}`}
-                      disabled={isPayingPremium}
-                    >
-                      {isPayingPremium ? (
-                        <ActivityIndicator size="small" color="#ffffff" />
-                      ) : (
-                        <Text className="text-white font-bold text-lg">
-                          Pay Premium
+              {isModalLoading ? (
+                <ActivityIndicator
+                  size="large"
+                  color="#6b46c1"
+                  className="my-10"
+                />
+              ) : details ? (
+                <>
+                  <View className="w-full mb-6">
+                    <View className="flex-row justify-between items-center bg-purple-50 p-4 rounded-xl mb-3">
+                      <Text className="text-base font-semibold text-purple-700">
+                        Premium
+                      </Text>
+                      <Text className="text-xl font-bold text-purple-900">
+                        {details.premiumAmount} TTK
+                      </Text>
+                    </View>
+                    <View className="flex-row justify-between items-center bg-green-50 p-4 rounded-xl mb-3">
+                      <Text className="text-base font-semibold text-green-700">
+                        Payout
+                      </Text>
+                      <Text className="text-xl font-bold text-green-900">
+                        {details.payoutAmount} TTK
+                      </Text>
+                    </View>
+                    <View className="flex-row justify-between items-center bg-yellow-50 p-4 rounded-xl">
+                      <Text className="text-base font-semibold text-yellow-700">
+                        Status
+                      </Text>
+                      <Text
+                        className={`text-xl font-bold ${
+                          StatusMap[details.currentStatus] === "Active"
+                            ? "text-green-600"
+                            : StatusMap[details.currentStatus] === "Pending"
+                              ? "text-gray-600"
+                              : "text-red-600"
+                        }`}
+                      >
+                        {StatusMap[details.currentStatus]}
+                      </Text>
+                    </View>
+                  </View>
+                  <View className="w-full border-t border-gray-200 pt-4">
+                    <View className="flex-row items-center justify-between py-2 border-b border-gray-100">
+                      <View className="flex-row items-center">
+                        <Image
+                          source={
+                            selectedAppRole === "company"
+                              ? require("../assets/images/purple-person-icon.png")
+                              : require("../assets/images/purple-company-icon.png")
+                          }
+                          className="w-5 h-5 mr-3"
+                          resizeMode="contain"
+                        />
+                        <Text className="text-sm font-medium text-gray-700">
+                          {selectedAppRole === "user"
+                            ? "Company Wallet"
+                            : "Insured Wallet"}
                         </Text>
-                      )}
-                    </TouchableOpacity>
-                  )}
-                {details.currentStatus === 0 && (
-                  <TouchableOpacity
-                    onPress={handleCancelPolicy}
-                    className={`mt-5 bg-red-500 self-center rounded-full w-[200px] h-[45px] items-center justify-center ${isPayingPremium ? "opacity-50" : ""}`}
-                  >
-                    <Text className="text-white font-bold text-lg">
-                      Cancel Policy
-                    </Text>
-                  </TouchableOpacity>
-                )}
-                {details.currentStatus === 1 && (
-                  // walletAddress?.toLowerCase() === details.userWallet.toLowerCase() &&
-                  <TouchableOpacity
-                    onPress={handleSubmitZonia}
-                    className={`mt-5 bg-green-500 self-center rounded-full w-[200px] h-[45px] items-center justify-center ${isFetchingZonia ? "opacity-50" : ""}`}
-                    disabled={isFetchingZonia}
-                  >
-                    {isFetchingZonia ? (
-                      <ActivityIndicator size="small" color="#ffffff" />
-                    ) : (
-                      <Text className="text-white font-bold text-lg">
-                        Check data
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                )}
-              </ScrollView>
-            ) : (
-              <Text className="text-base text-gray-600 mb-5">
-                No details found.
-              </Text>
-            )}
+                      </View>
+                      <TouchableOpacity
+                        onPress={() =>
+                          copyToClipboard(
+                            selectedAppRole === "user"
+                              ? details.companyWallet
+                              : details.userWallet,
+                          )
+                        }
+                      >
+                        <Text className="text-sm font-bold text-blue-500 underline">
+                          {selectedAppRole === "user"
+                            ? `${details.companyWallet.slice(0, 6)}...${details.companyWallet.slice(-4)}`
+                            : `${details.userWallet.slice(0, 6)}...${details.userWallet.slice(-4)}`}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
 
-            <Button
-              title="Close"
-              onPress={() => {
-                setDetailedInsuranceAddress("");
-                setDetails(null);
-                setShowDetailsModal(false);
-              }}
-              color="#6b46c1"
-            />
+                    <View className="flex-row items-center justify-between py-2 border-b border-gray-100">
+                      <View className="flex-row items-center">
+                        <Image
+                          source={require("../assets/images/calendar-icon.png")}
+                          className="w-5 h-5 mr-3"
+                          resizeMode="contain"
+                        />
+                        <Text className="text-sm font-medium text-gray-700">
+                          Expiration
+                        </Text>
+                      </View>
+                      <Text className="text-sm font-bold text-gray-800">
+                        {new Date(
+                          details.expirationTimestamp * 1000,
+                        ).toLocaleDateString()}
+                      </Text>
+                    </View>
+
+                    <View className="flex-row items-center justify-between py-2 border-b border-gray-100">
+                      <View className="flex-row items-center">
+                        <Image
+                          source={require("../assets/images/sensor-icon.png")}
+                          className="w-5 h-5 mr-3"
+                          resizeMode="contain"
+                        />
+                        <Text className="text-sm font-medium text-gray-700">
+                          Sensor
+                        </Text>
+                      </View>
+                      <Text className="text-sm font-bold text-gray-800">
+                        {details.sensor.split(":")[1]}
+                      </Text>
+                    </View>
+
+                    <View className="flex-row items-center justify-between py-2 border-b border-gray-100">
+                      <View className="flex-row items-center">
+                        <Image
+                          source={require("../assets/images/value-icon.png")}
+                          className="w-5 h-5 mr-3"
+                          resizeMode="contain"
+                        />
+                        <Text className="text-sm font-medium text-gray-700">
+                          Target Value
+                        </Text>
+                      </View>
+                      <Text className="text-sm font-bold text-gray-800">
+                        {details.target_value}
+                      </Text>
+                    </View>
+                    <View className="flex-row items-center justify-between py-2 border-b border-gray-100">
+                      <View className="flex-row items-center">
+                        <Image
+                          source={require("../assets/images/token-icon.png")}
+                          className="w-5 h-5 mr-3"
+                          resizeMode="contain"
+                        />
+                        <Text className="text-sm font-medium text-gray-700">
+                          Token
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => copyToClipboard(details.tokenAddress)}
+                      >
+                        <Text className="text-sm font-bold text-blue-500 underline">
+                          {`${details.tokenAddress.slice(0, 6)}...${details.tokenAddress.slice(-4)}`}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View className="flex-row items-center justify-between py-2">
+                      <View className="flex-row items-center">
+                        <Image
+                          source={require("../assets/images/purple_map_icon.png")}
+                          className="w-5 h-5 mr-3"
+                          resizeMode="contain"
+                        />
+                        <Text className="text-sm font-medium text-gray-700">
+                          Location
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        className="bg-purple-100 rounded-full p-2"
+                        onPress={() => {
+                          const regex =
+                            /lat: ([\d.-]+), lon: ([\d.-]+), radius: ([\d.-]+) m/;
+                          const match = details.geoloc.match(regex);
+
+                          if (match) {
+                            const lat = parseFloat(match[1]);
+                            const lon = parseFloat(match[2]);
+                            const rad = parseFloat(match[3]);
+
+                            setMapData({
+                              latitude: lat,
+                              longitude: lon,
+                              radius: rad,
+                            });
+                            setShowDetailsModal(false);
+                            setShowMapModal(true);
+                          } else {
+                            Alert.alert(
+                              "Error",
+                              "Invalid geographic data. Check the format.",
+                            );
+                          }
+                        }}
+                      >
+                        <Image
+                          source={require("../assets/images/purple_map_icon.png")}
+                          resizeMode="contain"
+                          className="w-6 h-6"
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  <View className="w-full mt-6">
+                    {details.currentStatus === 0 &&
+                      walletAddress?.toLowerCase() ===
+                        details.userWallet.toLowerCase() && (
+                        <TouchableOpacity
+                          onPress={handlePayPremium}
+                          className={`bg-green-500 self-center rounded-full w-full h-12 items-center justify-center mb-3 ${isPayingPremium ? "opacity-50" : ""}`}
+                          disabled={isPayingPremium}
+                        >
+                          {isPayingPremium ? (
+                            <ActivityIndicator size="small" color="#ffffff" />
+                          ) : (
+                            <Text className="text-white font-bold text-lg">
+                              Pay Premium
+                            </Text>
+                          )}
+                        </TouchableOpacity>
+                      )}
+                    {details.currentStatus === 0 && (
+                      <TouchableOpacity
+                        onPress={handleCancelPolicy}
+                        className={`bg-red-500 self-center rounded-full w-full h-12 items-center justify-center mb-3`}
+                      >
+                        <Text className="text-white font-bold text-lg">
+                          Cancel Policy
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                    {details.currentStatus === 1 && (
+                      <TouchableOpacity
+                        onPress={handleSubmitZonia}
+                        className={`bg-purple-600 self-center rounded-full w-full h-12 items-center justify-center mb-3 ${isFetchingZonia ? "opacity-50" : ""}`}
+                        disabled={isFetchingZonia}
+                      >
+                        {isFetchingZonia ? (
+                          <ActivityIndicator size="small" color="#ffffff" />
+                        ) : (
+                          <Text className="text-white font-bold text-lg">
+                            Check Data
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </>
+              ) : (
+                <Text className="text-base text-gray-600 text-center mb-5">
+                  No details found.
+                </Text>
+              )}
+              <TouchableOpacity
+                onPress={() => {
+                  setDetailedInsuranceAddress("");
+                  setDetails(null);
+                  setShowDetailsModal(false);
+                }}
+                className="bg-gray-200 self-center rounded-full w-full h-12 items-center justify-center"
+              >
+                <Text className="text-gray-700 font-bold text-lg">Close</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>
 
       <Modal animationType="fade" transparent={true} visible={showZoniaModal}>
-        <View className="flex-1 justify-center items-center bg-black/60">
-          <View className="m-4 bg-white rounded-3xl p-8 items-center shadow-2xl shadow-gray-400 w-[95%] max-w-[400px] justify-center">
+        <View className="flex-1 justify-center items-center bg-black/60 p-4">
+          <View className="m-4 bg-white rounded-3xl p-8 items-center shadow-2xl shadow-gray-400 w-full max-w-md">
+            <View className="flex-row items-center justify-center mb-6">
+              {resultZonia && zoniaRequestState === "completed" && (
+                <>
+                  <CheckCircle size={36} color="#28a745" />
+                  <Text className="text-2xl text-green-700 font-bold ml-3">
+                    Success!
+                  </Text>
+                </>
+              )}
+              {resultZonia && zoniaRequestState === "failed" && (
+                <>
+                  <AlertCircle size={36} color="#dc3545" />
+                  <Text className="text-2xl text-red-700 font-bold ml-3">
+                    Failed!
+                  </Text>
+                </>
+              )}
+              {!resultZonia && (
+                <>
+                  <Clock size={36} color="#ffc107" />
+                  <Text className="text-2xl text-orange-600 font-bold ml-3">
+                    Processing ...
+                  </Text>
+                </>
+              )}
+            </View>
+
             <Text className="text-3xl font-extrabold text-indigo-800 mb-6 text-center">
               Zonia Status
             </Text>
-
-            {resultZonia && zoniaRequestState === "completed" && (
-              <View className="flex-row items-center justify-center mb-6">
-                <CheckCircle size={36} color="#28a745" />
-                <Text className="text-2xl text-green-700 font-bold ml-3">
-                  Success!
-                </Text>
-              </View>
-            )}
-
-            {resultZonia && zoniaRequestState === "failed" && (
-              <View className="flex-row items-center justify-center mb-6">
-                <AlertCircle size={36} color="#dc3545" />
-                <Text className="text-2xl text-red-700 font-bold ml-3">
-                  Failed!
-                </Text>
-              </View>
-            )}
-
-            {!resultZonia && (
-              <View className="flex-row items-center justify-center mb-6">
-                <Clock size={36} color="#ffc107" />
-                <Text className="text-2xl text-orange-600 font-bold ml-3">
-                  Processing ...
-                </Text>
-              </View>
-            )}
-
             <View className="w-full mb-8 border-t border-b border-gray-200 py-4">
               {zoniaStates.map((state, index) => (
                 <View key={state} className="flex-row items-center mb-2">
@@ -687,7 +726,6 @@ export default function BrowseScreen() {
                 </View>
               ))}
             </View>
-
             {resultZonia &&
               (zoniaRequestState === "failed" ||
                 zoniaRequestState === "completed") && (
@@ -702,7 +740,6 @@ export default function BrowseScreen() {
                   </ScrollView>
                 </View>
               )}
-
             {zoniaRequestState === "completed" &&
               resultZonia &&
               details &&
@@ -711,7 +748,7 @@ export default function BrowseScreen() {
               canRequestPayout && (
                 <TouchableOpacity
                   onPress={handleRequestPayout}
-                  className={`mt-5 bg-green-500 self-center rounded-full w-[200px] h-[45px] items-center justify-center`}
+                  className={`mt-5 bg-green-500 self-center rounded-full w-full h-12 items-center justify-center`}
                 >
                   <Text className="text-white font-bold text-lg">
                     Request Payout
