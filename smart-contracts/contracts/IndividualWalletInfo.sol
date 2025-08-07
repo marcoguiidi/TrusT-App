@@ -10,6 +10,7 @@ import "./SmartInsurance.sol";
         Company // 2
     }
 
+
 contract IndividualWalletInfo is Ownable {
     address public associatedWallet;
     WalletType public walletType;
@@ -112,5 +113,21 @@ contract IndividualWalletInfo is Ownable {
         }
 
         emit SmartInsuranceStatusUpdated(_insuranceContract);
+    }
+
+    function batchUpdateExpiredPolicies(address[] calldata _policies) external {
+        uint256 currentTime = block.timestamp;
+        for (uint256 i = 0; i < _policies.length; i++) {
+            address policyAddress = _policies[i];
+            SmartInsurance policy = SmartInsurance(policyAddress);
+
+            if (policy.currentStatus() == SmartInsurance.Status.Active || policy.currentStatus() == SmartInsurance.Status.Pending) {
+                uint256 expirationTimestamp = policy.expirationTimestamp();
+
+                if (currentTime >= expirationTimestamp) {
+                    policy.updateStatus(SmartInsurance.Status.Expired);
+                }
+            }
+        }
     }
 }

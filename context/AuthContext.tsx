@@ -135,6 +135,7 @@ interface AuthContextType {
     | "failed";
   clearDeployStatus: () => void;
   canRequestPayout: boolean;
+  batchUpdateExpiredPolicies: (policyAddresses: string[]) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -1780,6 +1781,57 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setDeploySmartInsuranceState("");
   };
 
+  const batchUpdateExpiredPolicies = async (policyAddresses: string[]) => {
+    if (
+      !address ||
+      !wcProvider ||
+      !userCompanyRegistryContractRef.current ||
+      !currentChainId ||
+      !ethersProviderRef.current
+    ) {
+      throw new Error("Blockchain components not ready to update policies.");
+    }
+
+    const individualWalletInfoIface = new ethers.Interface(
+      INDIVIDUAL_WALLET_INFO_ABI,
+    );
+
+    const txData = individualWalletInfoIface.encodeFunctionData(
+      "batchUpdateExpiredPolicies",
+      [policyAddresses],
+    );
+
+    try {
+      const txHash = await (
+        wcProvider as IWalletConnectEip1193Provider
+      ).request({
+        method: "eth_sendTransaction",
+        params: [
+          {
+            from: address,
+            to: userCompanyRegistryContractRef.current.getAddress(),
+            data: txData,
+            chainId: `0x${currentChainId.toString(16)}`,
+          },
+        ],
+      });
+
+      const receipt =
+        await ethersProviderRef.current.waitForTransaction(txHash);
+
+      if (!receipt || receipt.status === 0) {
+        throw new Error("Transaction failed on-chain.");
+      }
+
+      console.log(
+        `Successfully updated expired policies. Transaction hash: ${txHash}`,
+      );
+    } catch (error: any) {
+      console.error("Error during batchUpdateExpiredPolicies:", error);
+      throw error;
+    }
+  };
+
   const contextValue: AuthContextType = {
     selectedAppRole,
     selectAppRole,
@@ -1811,6 +1863,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     deploySmartInsuranceState,
     clearDeployStatus,
     canRequestPayout,
+    batchUpdateExpiredPolicies,
   };
 
   return (

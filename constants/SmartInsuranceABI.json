@@ -492,6 +492,19 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "enum SmartInsurance.Status",
+        "name": "newStatus",
+        "type": "uint8"
+      }
+    ],
+    "name": "updateStatus",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "userIndividualWalletInfo",
     "outputs": [

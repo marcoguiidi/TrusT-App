@@ -61,6 +61,11 @@ export default function DashboardScreen() {
             icon: require("../assets/images/contract-icon.png"),
             path: "/create",
           },
+          {
+            label: "Expirations",
+            icon: require("../assets/images/expirations-icon.png"),
+            path: "/expirations",
+          },
         ]
       : []),
   ];
