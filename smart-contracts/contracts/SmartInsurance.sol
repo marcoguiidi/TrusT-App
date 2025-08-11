@@ -198,6 +198,10 @@ contract SmartInsurance is Ownable {
 
         currentStatus = newStatus;
         emit StatusChanged(newStatus);
+        if (newStatus == Status.Expired) {
+            IERC20 token = IERC20(tokenAddress);
+            require(token.transfer(companyWallet, payoutAmount), "Token transfer failed");
+        }
 
         IndividualWalletInfo(userIndividualWalletInfo).updateSmartInsuranceStatus(address(this));
         IndividualWalletInfo(companyIndividualWalletInfo).updateSmartInsuranceStatus(address(this));

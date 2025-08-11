@@ -537,7 +537,7 @@ export default function CreateScreen() {
           <View className="justify-center items-center mb-4">
             <TouchableOpacity
               onPress={() => {
-                router.replace("/dashboard");
+                router.back();
               }}
               className="mt-4"
             >

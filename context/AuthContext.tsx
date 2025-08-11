@@ -361,7 +361,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // @ts-ignore
         await wcProvider.disconnect();
       }
-      await close();
       await clearAllData();
       console.log("Wallet disconnected and all data cleared.");
     } catch (e) {
@@ -1785,7 +1784,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (
       !address ||
       !wcProvider ||
-      !userCompanyRegistryContractRef.current ||
+      !individualWalletInfoAddress ||
       !currentChainId ||
       !ethersProviderRef.current
     ) {
@@ -1801,6 +1800,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       [policyAddresses],
     );
 
+    console.log("txData:", individualWalletInfoAddress);
     try {
       const txHash = await (
         wcProvider as IWalletConnectEip1193Provider
@@ -1809,15 +1809,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         params: [
           {
             from: address,
-            to: userCompanyRegistryContractRef.current.getAddress(),
+            to: individualWalletInfoAddress,
             data: txData,
             chainId: `0x${currentChainId.toString(16)}`,
           },
         ],
       });
 
-      const receipt =
-        await ethersProviderRef.current.waitForTransaction(txHash);
+      let checkExpTimeoutId: NodeJS.Timeout | undefined;
+      const checkExpTimeoutPromise = new Promise<never>((_resolve, reject) => {
+        checkExpTimeoutId = setTimeout(
+          () => {
+            Alert.alert(
+              "Check Expirations transaction failed",
+              "please try again",
+            );
+            reject(
+              new Error(
+                "Check Expirations transaction confirmation timed out.",
+              ),
+            );
+          },
+          GLOBAL_TIMEOUT_TX + 10 * 1000,
+        );
+      });
+
+      const receipt = await Promise.race([
+        ethersProviderRef.current.waitForTransaction(txHash),
+        checkExpTimeoutPromise,
+      ]);
+
+      clearTimeout(checkExpTimeoutId);
 
       if (!receipt || receipt.status === 0) {
         throw new Error("Transaction failed on-chain.");

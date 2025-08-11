@@ -305,22 +305,23 @@ export default function BrowseScreen() {
 
   return (
     <SafeAreaView className="bg-white h-full items-center justify-start pt-8">
-      <Text
-        className={`text-2xl font-bold mb-6 ${
-          selectedAppRole === "user" ? "text-green-500" : "text-blue-500"
-        }`}
-      >
-        Your Insurances
-      </Text>
+      <View className="w-full flex-row justify-between items-center px-4 mb-8">
+        <Text
+          onPress={() => router.back()}
+          className="text-base font-medium text-blue-500 mb-6"
+        >
+          ← Home
+        </Text>
+        <Text
+          className={`text-2xl font-bold ${
+            selectedAppRole === "user" ? "text-green-500" : "text-blue-500"
+          }`}
+        >
+          Your Insurances
+        </Text>
+        <View className="w-[50px]" />
+      </View>
 
-      <Text
-        onPress={() => {
-          router.replace("/dashboard");
-        }}
-        className={"text-lg font-medium text-blue-300 mb-4"}
-      >
-        Home
-      </Text>
       <View className="flex flex-row items-center w-full h-[20px] justify-between px-10">
         <TouchableOpacity
           className={`px-1 border-2 border-white ${status == "pending" && `${selectedAppRole === "user" ? "border-b-green-500" : "border-b-blue-500"}`}`}
