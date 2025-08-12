@@ -49,12 +49,12 @@ interface InsuranceItem {
 }
 
 const DetailRow = ({
-                     icon,
-                     label,
-                     value,
-                     isCopyable = false,
-                     onCopy,
-                   }: {
+  icon,
+  label,
+  value,
+  isCopyable = false,
+  onCopy,
+}: {
   icon: JSX.Element;
   label: string;
   value: string;
@@ -138,6 +138,7 @@ export default function ExpirationsScreen() {
           details.currentStatus === 2 ||
           details.expirationTimestamp < currentTimestampInSeconds
         ) {
+          console.log("entro qui");
           expired.push(item);
         } else {
           notExpired.push(item);
@@ -192,7 +193,7 @@ export default function ExpirationsScreen() {
   const renderItem = ({ item }: { item: InsuranceItem }) => {
     const status = item.details.currentStatus;
     const isExpired = status === 4;
-    const toUpdate = !isExpired
+    const toUpdate = !isExpired;
 
     let containerStyle = "p-4 my-2 mx-4 bg-white rounded-2xl shadow-sm border";
     let statusTextStyle = "text-sm font-bold";
@@ -224,9 +225,7 @@ export default function ExpirationsScreen() {
         </View>
         <View className="flex-row justify-between items-center mt-1">
           <Text className="text-xs font-semibold text-neutral-500">Status</Text>
-          <Text className={statusTextStyle}>
-            {StatusMap[status]}
-          </Text>
+          <Text className={statusTextStyle}>{StatusMap[status]}</Text>
         </View>
       </TouchableOpacity>
     );
