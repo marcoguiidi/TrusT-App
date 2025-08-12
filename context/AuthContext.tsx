@@ -11,7 +11,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useWalletConnectModal } from "@walletconnect/modal-react-native";
 import { Contract, JsonRpcProvider, ethers } from "ethers";
 import { EIP1193Provider } from "@walletconnect/universal-provider";
-import * as Notifications from "expo-notifications";
 
 import {
   USER_COMPANY_REGISTRY_ABI,
@@ -31,9 +30,6 @@ import { providerMetadata } from "../constants/walletConnectConfig";
 import { Alert } from "react-native";
 
 const GLOBAL_TIMEOUT_TX = 20000;
-
-const NOTIFICATION_API_URL =
-  "https://dapptrust.netlify.app/.netlify/functions/send-notification";
 
 interface IWalletConnectEip1193Provider extends EIP1193Provider {
   request: (args: { method: string; params?: any[] }) => Promise<any>;
@@ -181,9 +177,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const userCompanyRegistryContractRef = useRef<Contract | null>(null);
   const myTokenContractRef = useRef<Contract | null>(null);
   const individualWalletInfoContractRef = useRef<Contract | null>(null);
-  const [notificationToken, setNotificationToken] = useState<string | null>(
-    null,
-  );
 
   useEffect(() => {
     const loadAuthState = async () => {
@@ -342,26 +335,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     initEthers();
-    registerForPushNotificationsAsync();
   }, [isConnected, address, wcProvider]);
-
-  const registerForPushNotificationsAsync = async () => {
-    let token;
-    const { status: existingStatus } =
-      await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== "granted") {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    if (finalStatus !== "granted") {
-      alert("Failed to get push token for push notification!");
-      return;
-    }
-    token = (await Notifications.getExpoPushTokenAsync()).data;
-    setNotificationToken(token);
-  };
 
   const selectAppRole = async (selectedRole: "user" | "company") => {
     try {
