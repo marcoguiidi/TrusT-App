@@ -138,7 +138,6 @@ export default function ExpirationsScreen() {
           details.currentStatus === 2 ||
           details.expirationTimestamp < currentTimestampInSeconds
         ) {
-          console.log("entro qui");
           expired.push(item);
         } else {
           notExpired.push(item);
@@ -156,7 +155,7 @@ export default function ExpirationsScreen() {
   };
 
   const handleUpdateExpired = async () => {
-    if (activeInsurances.length === 0) {
+    if (expiredInsurances.length === 0) {
       Alert.alert(
         "No Policies",
         "There are no active or pending policies to check.",
@@ -166,7 +165,7 @@ export default function ExpirationsScreen() {
 
     setUpdating(true);
     try {
-      const addresses = activeInsurances.map((item) => item.address);
+      const addresses = expiredInsurances.map((item) => item.address);
       await batchUpdateExpiredPolicies(addresses);
       Alert.alert("Success", "Expired policies have been updated.");
       await fetchExpiredInsurances();
