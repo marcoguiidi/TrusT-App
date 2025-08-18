@@ -18,6 +18,8 @@ import {
   CalendarDays,
   AlertCircle,
   TrendingUp,
+  Coins,
+  RefreshCcw,
 } from "lucide-react-native";
 import * as clipboard from "expo-clipboard";
 
@@ -61,7 +63,7 @@ const DetailRow = ({
   isCopyable?: boolean;
   onCopy?: () => void;
 }) => (
-  <View className="flex-row items-center justify-between p-3 border-b border-gray-200 last:border-b-0">
+  <View className="flex-row items-center justify-between py-3 border-b border-gray-200 last:border-b-0">
     <View className="flex-row items-center">
       {icon}
       <Text className="text-sm font-semibold text-neutral-600 ml-3">
@@ -165,8 +167,23 @@ export default function ExpirationsScreen() {
 
     setUpdating(true);
     try {
-      const addresses = expiredInsurances.map((item) => item.address);
-      await batchUpdateExpiredPolicies(addresses);
+      const addressesToUpdate = expiredInsurances
+        .filter(
+          (item) =>
+            item.details.currentStatus !== 4 &&
+            item.details.currentStatus !== 2,
+        )
+        .map((item) => item.address);
+
+      if (addressesToUpdate.length === 0) {
+        Alert.alert(
+          "No Update",
+          "All expired policies have already been updated.",
+        );
+        return;
+      }
+
+      await batchUpdateExpiredPolicies(addressesToUpdate);
       Alert.alert("Success", "Expired policies have been updated.");
       await fetchExpiredInsurances();
     } catch (e) {
@@ -191,21 +208,26 @@ export default function ExpirationsScreen() {
 
   const renderItem = ({ item }: { item: InsuranceItem }) => {
     const status = item.details.currentStatus;
+    const isClaimed = status === 2;
     const isExpired = status === 4;
-    const toUpdate = !isExpired;
+    const isToUpdate = !isClaimed && !isExpired;
 
     let containerStyle = "p-4 my-2 mx-4 bg-white rounded-2xl shadow-sm border";
     let statusTextStyle = "text-sm font-bold";
+    let icon = <Clock size={16} color="#9ca3af" />;
 
-    if (isExpired) {
-      containerStyle += " border-green-500";
-      statusTextStyle += " text-green-500";
-    } else if (toUpdate) {
-      containerStyle += " border-rose-500";
-      statusTextStyle += " text-rose-500";
-    } else {
-      containerStyle += " border-gray-200";
-      statusTextStyle += " text-neutral-800";
+    if (isClaimed) {
+      containerStyle += " border-emerald-500";
+      statusTextStyle += " text-emerald-500";
+      icon = <Coins size={16} color="#10b981" />;
+    } else if (isToUpdate) {
+      containerStyle += " border-red-500";
+      statusTextStyle += " text-red-500";
+      icon = <AlertCircle size={16} color="#ef4444" />;
+    } else if (isExpired) {
+      containerStyle += " border-gray-400";
+      statusTextStyle += " text-gray-400";
+      icon = <Clock size={16} color="#9ca3af" />;
     }
 
     return (
@@ -214,15 +236,16 @@ export default function ExpirationsScreen() {
         onPress={() => openDetailsModal(item.address)}
         activeOpacity={0.85}
       >
-        <View className="flex-row justify-between items-center mb-1">
-          <Text className="text-xs font-semibold text-neutral-500">
+        <View className="flex-row items-center mb-1">
+          {icon}
+          <Text className="text-xs font-semibold text-neutral-500 ml-2">
             Contract ID
           </Text>
-          <Text className="text-sm text-blue-500 font-medium">
-            {`${item.address.slice(0, 6)}...${item.address.slice(-4)}`}
-          </Text>
         </View>
-        <View className="flex-row justify-between items-center mt-1">
+        <Text className="text-sm text-blue-500 font-medium ml-6">
+          {`${item.address.slice(0, 6)}...${item.address.slice(-4)}`}
+        </Text>
+        <View className="flex-row justify-between items-center mt-2">
           <Text className="text-xs font-semibold text-neutral-500">Status</Text>
           <Text className={statusTextStyle}>{StatusMap[status]}</Text>
         </View>
@@ -241,35 +264,37 @@ export default function ExpirationsScreen() {
   }, [walletAddress, provider]);
 
   return (
-    <SafeAreaView className="bg-white h-full items-center justify-start pt-8">
-      <View className="w-full flex-row justify-between items-center px-4 mb-8">
-        <Text
-          onPress={() => router.replace("/dashboard")}
-          className="text-base font-medium text-blue-500"
-        >
-          ← Home
-        </Text>
-        <Text className="text-xl font-bold text-blue-800">
-          Expired Policies
-        </Text>
-        <View className="w-[50px]" />
+    <SafeAreaView className="bg-white h-full">
+      <View className="p-4 bg-white">
+        <View className="flex-row justify-between items-center mt-4">
+          <TouchableOpacity onPress={() => router.replace("/dashboard")}>
+            <Text className="text-base font-medium text-blue-500">← Home</Text>
+          </TouchableOpacity>
+          <Text className="text-xl font-bold text-blue-800">
+            Expired Policies
+          </Text>
+          <View className="w-[50px]" />
+        </View>
       </View>
 
       {selectedAppRole === "company" && (
         <TouchableOpacity
           onPress={handleUpdateExpired}
           activeOpacity={0.8}
-          className={`rounded-xl w-11/12 h-12 items-center justify-center mb-6 ${
-            updating ? "bg-red-300" : "bg-red-500"
+          className={`mx-4 rounded-xl flex-row items-center justify-center h-12 mb-6 ${
+            updating ? "bg-blue-300" : "bg-blue-600"
           }`}
           disabled={updating}
         >
           {updating ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text className="text-white font-semibold text-base">
-              Update Expired Policies
-            </Text>
+            <>
+              <RefreshCcw size={16} color="#fff" className="mr-3" />
+              <Text className="text-white font-semibold text-base ml-3">
+                Update Expired Policies
+              </Text>
+            </>
           )}
         </TouchableOpacity>
       )}
@@ -284,11 +309,14 @@ export default function ExpirationsScreen() {
           renderItem={renderItem}
           keyExtractor={(item) => item.address}
           className="w-full"
+          contentContainerStyle={{ paddingVertical: 16 }}
         />
       ) : (
-        <Text className="text-lg text-gray-500 mt-10">
-          No expired insurances found.
-        </Text>
+        <View className="flex-1 items-center justify-center">
+          <Text className="text-lg text-gray-500">
+            No expired insurances found.
+          </Text>
+        </View>
       )}
 
       <Modal
@@ -296,7 +324,7 @@ export default function ExpirationsScreen() {
         onBackdropPress={() => setIsDetailModalVisible(false)}
         className="justify-center items-center m-0"
       >
-        <View className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-xl border border-gray-200">
+        <View className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-xl">
           <View className="items-center mb-4">
             <View className="flex-row items-center space-x-2 mb-2">
               <AlertCircle size={28} color="#ef4444" />
@@ -307,18 +335,7 @@ export default function ExpirationsScreen() {
             </Text>
           </View>
           {selectedInsurance && (
-            <View className="space-y-1 border border-gray-200 rounded-lg overflow-hidden">
-              <View className="flex-row items-center justify-between p-3 bg-red-50">
-                <View className="flex-row items-center">
-                  <Clock size={18} color="#dc2626" />
-                  <Text className="text-sm font-semibold text-red-600 ml-3">
-                    Status
-                  </Text>
-                </View>
-                <Text className="text-sm font-bold text-red-600">
-                  {StatusMap[selectedInsurance.details.currentStatus]}
-                </Text>
-              </View>
+            <View className="space-y-1 bg-gray-50 rounded-lg p-3">
               <DetailRow
                 icon={<Clipboard size={18} color="#4b5563" />}
                 label="Contract ID"
@@ -351,7 +368,7 @@ export default function ExpirationsScreen() {
           )}
           <TouchableOpacity
             onPress={() => setIsDetailModalVisible(false)}
-            className="mt-6 bg-blue-500 rounded-full h-10 items-center justify-center shadow"
+            className="mt-6 bg-blue-600 rounded-full h-10 items-center justify-center shadow"
             activeOpacity={0.85}
           >
             <Text className="text-white font-semibold">Close</Text>
