@@ -1385,6 +1385,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         SMART_INSURANCE_ABI,
         ethersProviderRef.current,
       );
+
+      const InsuranceIface = new ethers.Interface(SMART_INSURANCE_ABI);
+
       const query = await smartInsuranceContractRead.query();
 
       const zoniaTokenContract = new Contract(
@@ -1405,8 +1408,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       );
 
       const approveData = zoniaTokenIface.encodeFunctionData("approve", [
-        chainIdToContractAddresses[currentChainId].zoniaContract, //insuranceAddress
-        10n,
+        insuranceAddress, //chainIdToContractAddresses[currentChainId].zoniaContract
+        50n,
       ]);
 
       const approveTxHash = await (
@@ -1444,13 +1447,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       console.log("Approval successful and confirmed.");
 
-      /*
-      const InsuranceIface = new ethers.Interface(SMART_INSURANCE_ABI);
+      ///*
+      if (!chainParams) {
+        chainParams = { w1: 25, w2: 25, w3: 25, w4: 25 };
+      }
 
-      const submitData = InsuranceIface.encodeFunctionData(
-        "checkZoniaData",
-        [1, 1, 10],
-      );
+      const inputData: InputRequest = {
+        query: query, //'{ "topic" : "zonia:PriceEthereum" }',
+        chainParams: chainParams,
+        ko: ko,
+        ki: ki,
+        fee: fee,
+      };
+
+      const submitData = InsuranceIface.encodeFunctionData("submitZoniaCheck", [
+        inputData,
+      ]);
 
       console.log("sending submitRequest zonia");
 
@@ -1505,7 +1517,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       //*/
 
-      ///*
+      /*
       const GateIface = new ethers.Interface(GATE_ABI);
 
       if (!chainParams) {
@@ -1513,7 +1525,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const inputData: InputRequest = {
-        query: '{ "topic" : "zonia:PriceEthereum" }', //query
+        query: query, //'{ "topic" : "zonia:PriceEthereum" }',
         chainParams: chainParams,
         ko: ko,
         ki: ki,
@@ -1713,7 +1725,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       console.log("checking on chain");
 
-      const InsuranceIface = new ethers.Interface(SMART_INSURANCE_ABI);
       const checkData = InsuranceIface.encodeFunctionData("checkZoniaData", [
         requestId,
       ]);

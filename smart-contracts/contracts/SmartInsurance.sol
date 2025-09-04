@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "./IGate.sol";
+import "./IndividualWalletInfo.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./IndividualWalletInfo.sol";
-import "./IGate.sol";
 
-struct InsuranceInitParams {
+    struct InsuranceInitParams {
     address userWallet;
     address companyWallet;
     uint256 premiumAmount;
@@ -92,9 +92,6 @@ contract SmartInsurance is Ownable {
 
         emit PolicyCreated(userWallet, companyWallet, premiumAmount, payoutAmount);
         emit StatusChanged(Status.Pending);
-
-        IndividualWalletInfo(userIndividualWalletInfo).addSmartInsuranceContract(address(this));
-        IndividualWalletInfo(companyIndividualWalletInfo).addSmartInsuranceContract(address(this));
     }
 
     function stringToUint(string memory s) public returns (uint, bool) {
@@ -133,6 +130,17 @@ contract SmartInsurance is Ownable {
         } else {
             conditionsSatisfied = false;
         }
+    }
+
+    function submitZoniaCheck(IGate.InputRequest memory inputRequest) public{
+        require(currentStatus == Status.Active, "Policy not Active");
+
+        IERC20 zoniaToken = IERC20(zoniaTokenAddress);
+        require(zoniaToken.transferFrom(userWallet, address(this), inputRequest.fee), "Fee transfer failed");
+
+        require(zoniaToken.approve(address(zoniaGate), inputRequest.fee), "approval failed");
+        bytes32 requestId = zoniaGate.submitRequest(inputRequest);
+        emit ZoniaRequestSubmitted(requestId);
     }
 
     function depositZoniaFee(uint256 feeAmount) public {
@@ -191,6 +199,9 @@ contract SmartInsurance is Ownable {
 
         IERC20 token = IERC20(tokenAddress);
         require(token.transferFrom(companyWallet, address(this), payoutAmount), "Token transfer failed");
+
+        IndividualWalletInfo(userIndividualWalletInfo).addSmartInsuranceContract(address(this));
+        IndividualWalletInfo(companyIndividualWalletInfo).addSmartInsuranceContract(address(this));
     }
 
     function updateStatus(Status newStatus) public {

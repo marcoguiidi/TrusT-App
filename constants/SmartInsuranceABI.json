@@ -453,6 +453,68 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "query",
+            "type": "string"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "w1",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "w2",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "w3",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "w4",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct IGate.ChainParams",
+            "name": "chainParams",
+            "type": "tuple"
+          },
+          {
+            "internalType": "uint256",
+            "name": "ko",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "ki",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "fee",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct IGate.InputRequest",
+        "name": "inputRequest",
+        "type": "tuple"
+      }
+    ],
+    "name": "submitZoniaCheck",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "target_value",
     "outputs": [
