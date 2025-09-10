@@ -42,6 +42,7 @@ interface SmartInsuranceDetails {
   query: string;
   sensor: string;
   target_value: string;
+  comparisonType: string;
   geoloc: string;
   payoutAmount: string;
   tokenAddress: string;
@@ -91,6 +92,7 @@ interface AuthContextType {
     query: string,
     sensor: string,
     target_value: bigint,
+    comparisonType: string,
     geoloc: string,
     premiumAmount: string,
     payoutAmount: string,
@@ -691,6 +693,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     query: string,
     sensor: string,
     target_value: bigint,
+    comparisonType: string,
     geoloc: string,
     premiumAmount: string,
     payoutAmount: string,
@@ -750,6 +753,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         query: string;
         sensor: string;
         target_value: ethers.BigNumberish;
+        comparisonType: string;
         geoloc: string;
         payoutAmount: ethers.BigNumberish;
         tokenAddress: string;
@@ -767,6 +771,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         query: query,
         sensor: sensor,
         target_value: target_value,
+        comparisonType: comparisonType,
         geoloc: geoloc,
         payoutAmount: payoutAmountWei,
         tokenAddress: tokenAddress,
@@ -1247,6 +1252,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const query = await smartInsuranceContract.query();
       const sensor = await smartInsuranceContract.sensor();
       const target_value = await smartInsuranceContract.target_value();
+      const comparisonType = await smartInsuranceContract.comparisonType();
       const geoloc = await smartInsuranceContract.geoloc();
       const payoutAmountWei = await smartInsuranceContract.payoutAmount();
       const tokenAddress = await smartInsuranceContract.tokenAddress();
@@ -1264,7 +1270,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         premiumAmount: premiumAmount,
         query: query,
         sensor: sensor,
-        target_value: target_value,
+        target_value: target_value ?? "max",
+        comparisonType: comparisonType,
         geoloc: geoloc,
         payoutAmount: payoutAmount,
         tokenAddress: tokenAddress.toString(),
@@ -1409,7 +1416,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const approveData = zoniaTokenIface.encodeFunctionData("approve", [
         insuranceAddress, //chainIdToContractAddresses[currentChainId].zoniaContract
-        50n,
+        10n,
       ]);
 
       const approveTxHash = await (
@@ -1453,7 +1460,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const inputData: InputRequest = {
-        query: query, //'{ "topic" : "zonia:PriceEthereum" }',
+        query: query, //'{ "topic" : "zonia:PriceEthereum" }', //
         chainParams: chainParams,
         ko: ko,
         ki: ki,

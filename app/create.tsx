@@ -41,6 +41,7 @@ export default function CreateScreen() {
     "s4agri:AmbientHumidity",
   );
   const [targetValue, setTargetValue] = useState("");
+  const [comparisonType, setComparisonType] = useState<"min" | "max">("min");
   const [latitude, setLatitude] = useState<string>("");
   const [longitude, setLongitude] = useState<string>("");
   const [radius, setRadius] = useState<string>("");
@@ -224,6 +225,7 @@ export default function CreateScreen() {
         query,
         sensorType,
         targetValueBigInt,
+        comparisonType,
         geoloc,
         formattedPremiumAmount,
         formattedPayoutAmount,
@@ -240,6 +242,7 @@ export default function CreateScreen() {
         setPayoutAmount("");
         setSensorType("s4agri:AmbientHumidity");
         setTargetValue("");
+        setComparisonType("min");
         setLatitude("");
         setLongitude("");
         setRadius("");
@@ -421,16 +424,52 @@ export default function CreateScreen() {
 
           <View className="mb-4">
             <Text className="text-sm font-semibold mb-1 text-gray-600">
-              TARGET VALUE ({">"}=)
+              TARGET VALUE (TRIGGER WHEN)
             </Text>
-            <TextInput
-              className="w-full p-3 border border-purple-300 rounded-lg text-base text-gray-800 bg-gray-50 focus:border-purple-500"
-              placeholder="25"
-              placeholderTextColor="#A0AEC0"
-              value={targetValue}
-              onChangeText={setTargetValue}
-              keyboardType="numeric"
-            />
+            <View className="flex-row items-center border border-purple-300 rounded-lg overflow-hidden">
+              <View className="flex-row items-center bg-gray-100 h-full mx-1">
+                <TouchableOpacity
+                  className={`p-3 mx-1 items-center rounded-full ${
+                    comparisonType === "min"
+                      ? "bg-purple-700"
+                      : "border border-purple-300"
+                  }`}
+                  onPress={() => setComparisonType("min")}
+                >
+                  <Text
+                    className={`font-semibold ${
+                      comparisonType === "min" ? "text-white" : "text-gray-700"
+                    }`}
+                  >
+                    ≤
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className={`p-3 mx-1 items-center rounded-full ${
+                    comparisonType === "max"
+                      ? "bg-purple-700"
+                      : "border border-purple-300"
+                  }`}
+                  onPress={() => setComparisonType("max")}
+                >
+                  <Text
+                    className={`font-semibold ${
+                      comparisonType === "max" ? "text-white" : "text-gray-700"
+                    }`}
+                  >
+                    ≥
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <TextInput
+                className="flex-1 p-3 text-base text-gray-800 bg-gray-50 focus:border-purple-500"
+                placeholder="25"
+                placeholderTextColor="#A0AEC0"
+                value={targetValue}
+                onChangeText={setTargetValue}
+                keyboardType="numeric"
+              />
+            </View>
           </View>
 
           <View className="flex justify-between mb-4">

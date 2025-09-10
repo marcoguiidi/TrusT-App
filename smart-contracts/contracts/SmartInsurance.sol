@@ -13,6 +13,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
     string  query;
     string  sensor;
     uint256 target_value;
+    string comparisonType;
     string  geoloc;
     uint256 payoutAmount;
     address tokenAddress;
@@ -30,6 +31,7 @@ contract SmartInsurance is Ownable {
     string public query;
     string public sensor;
     uint256 public target_value;
+    string public comparisonType;
     string public geoloc;
     uint256 public payoutAmount;
     address public tokenAddress;
@@ -75,6 +77,7 @@ contract SmartInsurance is Ownable {
         query = params.query;
         sensor = params.sensor;
         target_value = params.target_value;
+        comparisonType = params.comparisonType;
         geoloc = params.geoloc;
         payoutAmount = params.payoutAmount;
         tokenAddress = params.tokenAddress;
@@ -124,11 +127,20 @@ contract SmartInsurance is Ownable {
         if( success == false ) {
             revert("Impossible to convert result");
         }
-
-        if( unitRes >= target_value ) {
-            conditionsSatisfied = true;
+        if (keccak256(bytes(comparisonType)) == keccak256(bytes("max"))){
+            if( unitRes >= target_value ) {
+                conditionsSatisfied = true;
+         } else {
+                conditionsSatisfied = false;
+            }
+        } else if (keccak256(bytes(comparisonType)) == keccak256(bytes("min"))){
+            if( unitRes <= target_value ) {
+                conditionsSatisfied = true;
+            } else {
+                conditionsSatisfied = false;
+            }
         } else {
-            conditionsSatisfied = false;
+            revert("invalid comparison type");
         }
     }
 

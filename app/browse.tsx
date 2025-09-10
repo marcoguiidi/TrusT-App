@@ -25,6 +25,7 @@ interface SmartInsuranceDetails {
   query: string;
   sensor: string;
   target_value: number;
+  comparisonType: string;
   geoloc: string;
   payoutAmount: string;
   tokenAddress: string;
@@ -545,7 +546,8 @@ export default function BrowseScreen() {
                           resizeMode="contain"
                         />
                         <Text className="text-sm font-medium text-gray-700">
-                          Target Value
+                          Target Value{" "}
+                          {details.comparisonType == "min" ? "≤" : "≥"}
                         </Text>
                       </View>
                       <Text className="text-sm font-bold text-gray-800">
