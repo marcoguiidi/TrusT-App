@@ -14,7 +14,7 @@
     "ios": {
       "supportsTablet": true,
       "config": {
-        "googleMapsApiKey":  "process.env.EXPO_PUBLIC_Maps_API_KEY"
+        "googleMapsApiKey": "process.env.EXPO_PUBLIC_Maps_API_KEY"
       },
       "jsEngine": "jsc",
       "infoPlist": {
@@ -72,7 +72,8 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      "expo-secure-store"
     ],
     "extra": {
       "walletconnectProjectId": "6115e11a1e8e0e40048cf0fd64269848"

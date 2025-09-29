@@ -35,8 +35,6 @@ export default function UniversalLaunchScreen() {
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    // Assicurati che il wallet sia connesso, i contratti siano pronti,
-    // e che walletTypeOnChain abbia un valore (non null)
     if (walletConnected && isCoreContractsReady && walletTypeOnChain) {
       console.log(
         `DEBUG: Wallet connesso e ruolo on-chain (${walletTypeOnChain}) già rilevato. Reindirizzo alla dashboard.`,
@@ -88,15 +86,7 @@ export default function UniversalLaunchScreen() {
     );
   }
 
-  // --- LOGICA DI VISUALIZZAZIONE DEL COMPONENTE ---
-  // Aggiungi un controllo per il reindirizzamento qui, prima di mostrare qualsiasi UI.
-  // Questo blocco dovrebbe essere prima degli altri `if` per assicurarsi che il reindirizzamento avvenga il prima possibile.
-  // Tuttavia, l'useEffect sopra è l'approccio preferito per i reindirizzamenti basati su stato.
-  // Questo `if` può fungere da piccola ottimizzazione o fallback visivo.
   if (walletConnected && isCoreContractsReady && walletTypeOnChain) {
-    // Se siamo qui, significa che l'useEffect non ha ancora reindirizzato,
-    // o che l'utente è tornato su questa pagina dopo essere stato reindirizzato.
-    // Mostra un indicatore di caricamento breve prima del reindirizzamento.
     return (
       <View style={[styles.container, styles.loadingContainer]}>
         <ActivityIndicator size="large" color="#00ff00" />
@@ -106,8 +96,6 @@ export default function UniversalLaunchScreen() {
   }
 
   if (!walletConnected) {
-    // Caso 1: Wallet non connesso
-
     return (
       <SafeAreaView className="w-full h-full items-center justify-start top-4 flex">
         <Modal visible={showEntryModal} animationType="slide">
@@ -176,7 +164,6 @@ export default function UniversalLaunchScreen() {
       </SafeAreaView>
     );
   } else if (!isCoreContractsReady) {
-    // Caso 2: Wallet connesso ma contratti non pronti (ancora in caricamento o errore)
     return (
       <View style={styles.container}>
         <Text className="text-3xl text-purple-700 font-bold mb-10">
@@ -186,8 +173,6 @@ export default function UniversalLaunchScreen() {
       </View>
     );
   } else if (!selectedAppRole || !walletTypeOnChain) {
-    // Caso 3: Wallet connesso e contratti pronti, ma ruolo non selezionato/registrato on-chain
-    // Questo è il punto in cui l'utente selezionerà il ruolo se non ne ha uno on-chain.
     return (
       <SafeAreaView className="w-full h-full items-center justify-start top-4 flex">
         <Text className="text-2xl text-purple-700 font-bold">
@@ -262,10 +247,6 @@ export default function UniversalLaunchScreen() {
       </SafeAreaView>
     );
   } else {
-    // Questo `else` sarà raggiunto solo se l'useEffect non ha reindirizzato
-    // (ad esempio, se `router.replace` ha un ritardo)
-    // o in scenari di fallback.
-    // L'utente è autenticato e il ruolo on-chain è già stato impostato.
     return (
       <View style={styles.container}>
         <Button
