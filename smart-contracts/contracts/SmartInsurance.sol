@@ -6,18 +6,20 @@ import "./IndividualWalletInfo.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-    struct sensorElement {
-        string query;
-        string sensor;
-        uint256 target_value;
-        string comparisonType;
-    }
+struct sensorElement {
+    string query;
+    string sensor;
+    uint256 target_value;
+    string comparisonType;
+    bytes32 zoniaRequestId;
+    bool isConditionSatisfied;
+}
 
-    struct InsuranceInitParams {
+struct InsuranceInitParams {
     address userWallet;
     address companyWallet;
     uint256 premiumAmount;
-        sensorElement[] sensors;
+    sensorElement[] sensors;
     string  geoloc;
     uint256 payoutAmount;
     address tokenAddress;
@@ -40,8 +42,6 @@ contract SmartInsurance is Ownable {
 
     address public userIndividualWalletInfo;
     address public companyIndividualWalletInfo;
-
-    bool public conditionsSatisfied;
 
     uint256 public expirationTimestamp;
 
@@ -85,8 +85,6 @@ contract SmartInsurance is Ownable {
         companyIndividualWalletInfo = params.companyIndividualWalletInfo;
         zoniaTokenAddress = params.zoniaTokenAddress;
 
-        conditionsSatisfied = false;
-
         expirationTimestamp = params.expirationTimestamp;
 
         zoniaGate = IGate(params.zoniaGateAddress);
@@ -94,6 +92,18 @@ contract SmartInsurance is Ownable {
 
         emit PolicyCreated(userWallet, companyWallet, premiumAmount, payoutAmount);
         emit StatusChanged(Status.Pending);
+    }
+
+    function allConditionsSatisfied() public view returns (bool) {
+        if (currentStatus != Status.Active) {
+            return false;
+        }
+        for (uint i = 0; i < sensors.length; i++) {
+            if (!sensors[i].isConditionSatisfied) {
+                return false;
+            }
+        }
+        return true;
     }
 
     function getAllSensors() public view returns (sensorElement[] memory) {
@@ -120,9 +130,12 @@ contract SmartInsurance is Ownable {
         return (result, hasError);
     }
 
-    function checkZoniaData(bytes32 requestId) public {
+    function checkZoniaData(bytes32 requestId, uint index) public {
         require(currentStatus == Status.Active, "Policy not Active");
-        conditionsSatisfied = false;
+        require(index < sensors.length, "Invalid sensor index");
+        require(sensors[index].zoniaRequestId == requestId, "Mismatching Zonia Request ID for this sensor");
+
+        sensors[index].isConditionSatisfied = false;
 
         string memory result = zoniaGate.getResult(requestId);
 
@@ -130,36 +143,33 @@ contract SmartInsurance is Ownable {
         if( success == false ) {
             revert("Impossible to convert result");
         }
-        for (uint i = 0; i < sensors.length; i++){
-            if (keccak256(bytes(sensors[i].comparisonType)) == keccak256(bytes("max"))){
-                if( unitRes >= sensors[i].target_value ) {
-                    conditionsSatisfied = true;
-                } else {
-                    conditionsSatisfied = false;
-                    break;
-                }
-            } else if (keccak256(bytes(sensors[i].comparisonType)) == keccak256(bytes("min"))){
-                if( unitRes <= sensors[i].target_value ) {
-                    conditionsSatisfied = true;
-                } else {
-                    conditionsSatisfied = false;
-                    break;
-                }
-            } else {
-                revert("invalid comparison type");
-            }
-        }
 
+        if (keccak256(bytes(sensors[index].comparisonType)) == keccak256(bytes("max"))){
+            if( unitRes >= sensors[index].target_value ) {
+                sensors[index].isConditionSatisfied = true;
+            }
+        } else if (keccak256(bytes(sensors[index].comparisonType)) == keccak256(bytes("min"))){
+            if( unitRes <= sensors[index].target_value ) {
+                sensors[index].isConditionSatisfied = true;
+            }
+        } else {
+            revert("invalid comparison type");
+        }
     }
 
-    function submitZoniaCheck(IGate.InputRequest memory inputRequest) public{
+    function submitZoniaCheck(IGate.InputRequest memory inputRequest,uint256 sensorIndex) public {
         require(currentStatus == Status.Active, "Policy not Active");
+        require(sensorIndex < sensors.length, "Invalid sensor index");
 
         IERC20 zoniaToken = IERC20(zoniaTokenAddress);
         require(zoniaToken.transferFrom(userWallet, address(this), inputRequest.fee), "Fee transfer failed");
 
         require(zoniaToken.approve(address(zoniaGate), inputRequest.fee), "approval failed");
+
         bytes32 requestId = zoniaGate.submitRequest(inputRequest);
+
+        sensors[sensorIndex].zoniaRequestId = requestId;
+
         emit ZoniaRequestSubmitted(requestId);
     }
 
@@ -187,7 +197,7 @@ contract SmartInsurance is Ownable {
     function executePayout() public {
         require(currentStatus == Status.Active, "Policy not active");
         require(msg.sender == userWallet, "Only the user can require the payout");
-        require(conditionsSatisfied == true, "Conditions not satisfied");
+        require(allConditionsSatisfied() == true, "Conditions not satisfied");
 
         IERC20 token = IERC20(tokenAddress);
         require(token.transfer(userWallet, payoutAmount), "Token transfer failed");

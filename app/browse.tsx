@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Modal,
   Platform,
+  FlatList, // AGGIUNTO per il supporto della lista
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { useRouter } from "expo-router";
@@ -17,6 +18,23 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
 import { AlertCircle, CheckCircle, Clock } from "lucide-react-native";
 import MapView, { Circle, Marker, PROVIDER_GOOGLE } from "react-native-maps";
+
+// Tipi definiti per la gestione multi-sensore
+export type ZoniaRequestState =
+  | "submitted"
+  | "seeded"
+  | "ready"
+  | "completed"
+  | "failed"
+  | "initial";
+export interface SensorRequestProgress {
+  sensorIndex: number;
+  sensorQuery: string;
+  requestId: string;
+  status: ZoniaRequestState;
+  result?: string;
+  finalCheckSuccess?: boolean; // True solo se checkZoniaData non è revertita
+}
 
 interface sensorElement {
   query: string;
@@ -37,6 +55,12 @@ interface SmartInsuranceDetails {
   expirationTimestamp: number;
 }
 
+interface MapData {
+  latitude: number;
+  longitude: number;
+  radius: number;
+}
+
 const StatusMap: { [key: number]: string } = {
   0: "Pending",
   1: "Active",
@@ -45,8 +69,7 @@ const StatusMap: { [key: number]: string } = {
   4: "Expired",
 };
 
-const zoniaStates = [
-  "pending",
+const zoniaStates: ZoniaRequestState[] = [
   "submitted",
   "seeded",
   "ready",
@@ -66,10 +89,9 @@ export default function BrowseScreen() {
     getSmartInsurancesForWallet,
     getDetailForSmartInsurance,
     paySmartInsurancePremium,
-    submitZoniaRequest,
+    submitZoniaRequest, // Questa funzione ora restituisce Promise<SensorRequestProgress[]>
     paySmartInsurancePayout,
-    zoniaRequestState,
-    clearZoniaRequestState,
+    // Rimossi zoniaRequestState e clearZoniaRequestState
     cancelPolicy,
     canRequestPayout,
   } = useAuth();
@@ -86,21 +108,55 @@ export default function BrowseScreen() {
   const [status, setStatus] = useState<"pending" | "active" | "closed">(
     "pending",
   );
-  const [resultZonia, setResultZonia] = useState<string | undefined>("");
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showZoniaModal, setShowZoniaModal] = useState(
-    zoniaRequestState != null,
-  );
-  const currentIndex = zoniaRequestState
-    ? zoniaStates.indexOf(zoniaRequestState)
-    : -1;
-
   const [showMapModal, setShowMapModal] = useState(false);
-  const [mapData, setMapData] = useState<{
-    latitude: number;
-    longitude: number;
-    radius: number;
-  } | null>(null);
+  const [mapData, setMapData] = useState<MapData | null>(null);
+
+  // NUOVI STATI PER LA GESTIONE MULTI-SENSORE
+  const [allRequestsProgress, setAllRequestsProgress] = useState<
+    SensorRequestProgress[]
+  >([]);
+  const [showZoniaModal, setShowZoniaModal] = useState(false);
+
+  // Variabili derivate per lo stato del processo
+  const isZoniaProcessCompleted =
+    allRequestsProgress.length > 0 &&
+    allRequestsProgress.every(
+      (r) => r.status === "completed" || r.status === "failed",
+    );
+
+  const allChecksPassed =
+    isZoniaProcessCompleted &&
+    allRequestsProgress.every((r) => r.finalCheckSuccess === true);
+
+  // Funzione di callback per aggiornare lo stato in tempo reale (passata a submitZoniaRequest)
+  const updateProgress = (
+    requestId: string,
+    newStatus: ZoniaRequestState,
+    result?: string,
+  ) => {
+    setAllRequestsProgress((prev) => {
+      if (prev.length === 0) return prev;
+
+      return prev.map((req) => {
+        // Solo se l'ID di richiesta è valido (quindi dopo la submission on-chain)
+        if (req.requestId && req.requestId === requestId) {
+          return {
+            ...req,
+            status: newStatus,
+            result: result || req.result,
+          };
+        }
+        // Gestione del caso iniziale in cui l'ID non è ancora noto
+        if (!req.requestId && newStatus === "submitted") {
+          // Questo caso è gestito direttamente dalla Promise.all in handleSubmitZonia,
+          // ma manteniamo la sicurezza.
+          return req;
+        }
+        return req;
+      });
+    });
+  };
 
   useEffect(() => {
     setIsLoading(true);
@@ -112,7 +168,7 @@ export default function BrowseScreen() {
         return;
       }
 
-      if (zoniaRequestState) {
+      if (showZoniaModal) {
         return;
       }
 
@@ -132,7 +188,7 @@ export default function BrowseScreen() {
     };
 
     fetchInsurances();
-  }, [walletAddress, getSmartInsurancesForWallet, key, status]);
+  }, [walletAddress, getSmartInsurancesForWallet, key, status, showZoniaModal]);
 
   useEffect(() => {
     const fetchDetailInsurance = async () => {
@@ -141,7 +197,7 @@ export default function BrowseScreen() {
         return;
       }
 
-      if (zoniaRequestState) {
+      if (showZoniaModal) {
         return;
       }
 
@@ -162,14 +218,12 @@ export default function BrowseScreen() {
     };
 
     fetchDetailInsurance();
-  }, [detailedInsuranceAddress, getDetailForSmartInsurance, key]);
-
-  useEffect(() => {
-    if (zoniaRequestState != null) {
-      setShowDetailsModal(false);
-      setShowZoniaModal(true);
-    }
-  }, [zoniaRequestState]);
+  }, [
+    detailedInsuranceAddress,
+    getDetailForSmartInsurance,
+    key,
+    showZoniaModal,
+  ]);
 
   const copyToClipboard = async (text: string) => {
     await Clipboard.setStringAsync(text);
@@ -185,17 +239,44 @@ export default function BrowseScreen() {
       return;
     }
 
+    // 1. Inizializza lo stato di progresso per la UI
+    const initialProgress: SensorRequestProgress[] = details.sensors.map(
+      (sensor, index) => ({
+        sensorIndex: index,
+        sensorQuery: sensor.query,
+        requestId: "",
+        status: "submitted" as const,
+      }),
+    );
+    setAllRequestsProgress(initialProgress);
+    setShowDetailsModal(false);
+    setShowZoniaModal(true);
+
     try {
       setIsFetchingZonia(true);
-      const result = await submitZoniaRequest(
+
+      // 2. Chiama la funzione con la callback di aggiornamento
+      const finalResults = await submitZoniaRequest(
         detailedInsuranceAddress,
         1,
         1,
         10,
+        updateProgress, // Passa la callback
       );
-      setResultZonia(result);
+
+      // 3. Aggiorna lo stato finale dopo che tutte le promesse sono risolte
+      setAllRequestsProgress(finalResults);
     } catch (e: any) {
-      setResultZonia(e.toString());
+      console.error("Errore durante submitZoniaRequest:", e);
+      Alert.alert(
+        "Error",
+        `Zonia Submission Failed: ${e.message || e.toString()}`,
+      );
+
+      // Se fallisce, resetta tutto
+      setAllRequestsProgress([]);
+      setShowZoniaModal(false);
+      setShowDetailsModal(true);
     } finally {
       setIsFetchingZonia(false);
     }
@@ -260,9 +341,22 @@ export default function BrowseScreen() {
   };
 
   const handleRequestPayout = async () => {
+    if (!allChecksPassed) {
+      Alert.alert(
+        "Error",
+        "All sensor conditions must be successfully verified on-chain before requesting payout.",
+      );
+      return;
+    }
+
     try {
       await paySmartInsurancePayout(detailedInsuranceAddress);
       Alert.alert("Success", "The payout is received.");
+
+      // Resetta stato e chiudi modale
+      setAllRequestsProgress([]);
+      setShowZoniaModal(false);
+
       setKey((prev) => prev + 1);
     } catch (error: any) {
       console.error("Error:", error);
@@ -270,17 +364,105 @@ export default function BrowseScreen() {
     }
   };
 
-  const getCircleStyle = (index: number) => {
+  // Funzioni di stile per il progress bar
+  const getCircleStyle = (index: number, currentStatus: ZoniaRequestState) => {
+    const currentIndex = zoniaStates.indexOf(currentStatus);
     if (index < currentIndex) return "bg-purple-600";
     if (index === currentIndex)
       return "bg-purple-500 shadow-lg shadow-purple-400";
+    if (currentStatus === "failed") return "bg-red-500";
     return "bg-gray-300";
   };
 
-  const getLabelStyle = (index: number) => {
+  const getLabelStyle = (index: number, currentStatus: ZoniaRequestState) => {
+    const currentIndex = zoniaStates.indexOf(currentStatus);
+    if (currentStatus === "failed") return "text-red-700 font-bold";
     if (index === currentIndex) return "text-purple-700 font-bold";
     if (index < currentIndex) return "text-gray-500";
     return "text-gray-400";
+  };
+
+  // Nuovo componente per renderizzare l'elemento di progresso di un singolo sensore
+  const SensorProgressItem = ({ item }: { item: SensorRequestProgress }) => {
+    const icon =
+      item.status === "completed" && item.finalCheckSuccess ? (
+        <CheckCircle size={20} color="#28a745" />
+      ) : item.status === "failed" ||
+        (item.status === "completed" && !item.finalCheckSuccess) ? (
+        <AlertCircle size={20} color="#dc3545" />
+      ) : (
+        <Clock size={20} color="#ffc107" />
+      );
+
+    const statusText =
+      item.status === "completed" && item.finalCheckSuccess
+        ? "Success (Check On-Chain OK)"
+        : item.status === "completed" && !item.finalCheckSuccess
+          ? "Completed (Check FAILED)"
+          : item.status === "failed"
+            ? "Request Failed"
+            : "Processing...";
+
+    const statusColor =
+      item.status === "completed" && item.finalCheckSuccess
+        ? "text-green-700"
+        : item.status === "failed" ||
+            (item.status === "completed" && !item.finalCheckSuccess)
+          ? "text-red-700"
+          : "text-orange-600";
+
+    const showSummary = item.status === "completed" || item.status === "failed";
+
+    // Recupera il nome del sensore
+    const sensorDetails = details?.sensors[item.sensorIndex];
+    const sensorName = sensorDetails
+      ? getSensorName(sensorDetails.sensor)
+      : `Sensor ${item.sensorIndex + 1}`;
+
+    return (
+      <View className="p-3 border border-gray-200 rounded-xl mb-3 bg-white shadow-sm">
+        <View className="flex-row items-center justify-between pb-2 border-b border-gray-100">
+          <View className="flex-row items-center">
+            {icon}
+            <Text className="text-base font-bold text-gray-800 ml-2">
+              {sensorName}
+            </Text>
+          </View>
+          <Text className={`text-sm font-semibold ${statusColor}`}>
+            {statusText}
+          </Text>
+        </View>
+
+        <View className="w-full pt-2">
+          {zoniaStates.map((state, index) => (
+            <View key={state} className="flex-row items-center mb-1">
+              <View
+                className={`w-3 h-3 rounded-full mr-2 ${getCircleStyle(index, item.status)}`}
+              />
+              <Text className={`text-xs ${getLabelStyle(index, item.status)}`}>
+                {state.charAt(0).toUpperCase() + state.slice(1)}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        {showSummary && (
+          <View className="w-full bg-gray-50 p-2 rounded-lg mt-2 border border-gray-100">
+            <Text className="font-bold text-gray-700 text-sm mb-1">
+              Risultato (Raw):
+            </Text>
+            <ScrollView className="max-h-[60px]">
+              <Text className="text-gray-600 text-xs break-words leading-4">
+                {item.result ||
+                  (item.finalCheckSuccess === false
+                    ? "Check On-Chain Reverted"
+                    : "N/A")}
+              </Text>
+            </ScrollView>
+          </View>
+        )}
+      </View>
+    );
   };
 
   const CardView = ({ address }: { address: string }) => {
@@ -391,7 +573,7 @@ export default function BrowseScreen() {
         className="h-full w-full"
         contentContainerStyle={{ alignItems: "center", paddingVertical: 20 }}
       >
-        {isLoading && !zoniaRequestState ? (
+        {isLoading && !showZoniaModal ? (
           <ActivityIndicator
             size="large"
             className="mt-[30px]"
@@ -713,23 +895,23 @@ export default function BrowseScreen() {
         <View className="flex-1 justify-center items-center bg-black/60 p-4">
           <View className="m-4 bg-white rounded-3xl p-8 items-center shadow-2xl shadow-gray-400 w-full max-w-md">
             <View className="flex-row items-center justify-center mb-6">
-              {resultZonia && zoniaRequestState === "completed" && (
+              {isZoniaProcessCompleted && allChecksPassed && (
                 <>
                   <CheckCircle size={36} color="#28a745" />
                   <Text className="text-2xl text-green-700 font-bold ml-3">
-                    Success!
+                    All Checks Success!
                   </Text>
                 </>
               )}
-              {resultZonia && zoniaRequestState === "failed" && (
+              {isZoniaProcessCompleted && !allChecksPassed && (
                 <>
                   <AlertCircle size={36} color="#dc3545" />
                   <Text className="text-2xl text-red-700 font-bold ml-3">
-                    Failed!
+                    One or More Checks Failed!
                   </Text>
                 </>
               )}
-              {!resultZonia && (
+              {!isZoniaProcessCompleted && (
                 <>
                   <Clock size={36} color="#ffc107" />
                   <Text className="text-2xl text-orange-600 font-bold ml-3">
@@ -740,36 +922,30 @@ export default function BrowseScreen() {
             </View>
 
             <Text className="text-3xl font-extrabold text-indigo-800 mb-6 text-center">
-              Zonia Status
+              Zonia Status ({allRequestsProgress.length} Sensors)
             </Text>
-            <View className="w-full mb-8 border-t border-b border-gray-200 py-4">
-              {zoniaStates.map((state, index) => (
-                <View key={state} className="flex-row items-center mb-2">
-                  <View
-                    className={`w-4 h-4 rounded-full mr-3 ${getCircleStyle(index)}`}
-                  />
-                  <Text className={`text-base ${getLabelStyle(index)}`}>
-                    {state.charAt(0).toUpperCase() + state.slice(1)}
+
+            {/* Lista dei progressi dei sensori */}
+            <FlatList
+              data={allRequestsProgress}
+              renderItem={SensorProgressItem}
+              keyExtractor={(item) =>
+                item.requestId || item.sensorIndex.toString()
+              }
+              className="w-full max-h-[350px] mb-6 border-t border-b border-gray-200 py-4"
+              ListEmptyComponent={
+                <View className="flex-1 items-center justify-center pt-8">
+                  <ActivityIndicator size="large" color="#6b46c1" />
+                  <Text className="text-center text-gray-500 mt-2">
+                    Submitting requests...
                   </Text>
                 </View>
-              ))}
-            </View>
-            {resultZonia &&
-              (zoniaRequestState === "failed" ||
-                zoniaRequestState === "completed") && (
-                <View className="w-full bg-gray-50 p-4 rounded-lg mb-6 border border-gray-200">
-                  <Text className="font-bold text-gray-800 text-lg mb-2">
-                    Result:
-                  </Text>
-                  <ScrollView className="max-h-[120px]">
-                    <Text className="text-gray-600 text-sm break-words leading-5">
-                      {resultZonia}
-                    </Text>
-                  </ScrollView>
-                </View>
-              )}
-            {zoniaRequestState === "completed" &&
-              resultZonia &&
+              }
+            />
+
+            {/* Pulsante Request Payout (Visibile solo se tutti i check sono OK) */}
+            {isZoniaProcessCompleted &&
+              allChecksPassed &&
               details &&
               walletAddress?.toLowerCase() ===
                 details.userWallet.toLowerCase() &&
@@ -784,22 +960,30 @@ export default function BrowseScreen() {
                 </TouchableOpacity>
               )}
 
-            {(zoniaRequestState === "completed" ||
-              zoniaRequestState === "failed") &&
-              resultZonia && (
-                <TouchableOpacity
-                  onPress={() => {
-                    clearZoniaRequestState();
-                    setShowDetailsModal(true);
-                    setShowZoniaModal(false);
-                    setResultZonia(undefined);
-                    setKey((prev) => prev + 1);
-                  }}
-                  className="mt-4 bg-purple-600 px-6 py-3 rounded-full shadow-md shadow-purple-400"
-                >
-                  <Text className="text-white font-bold text-lg">Close</Text>
-                </TouchableOpacity>
-              )}
+            {/* Pulsante Close (Visibile solo quando l'intero processo è terminato) */}
+            {isZoniaProcessCompleted && (
+              <TouchableOpacity
+                onPress={() => {
+                  setAllRequestsProgress([]); // Resetta lo stato di progresso
+                  setShowDetailsModal(true);
+                  setShowZoniaModal(false);
+                  setKey((prev) => prev + 1);
+                }}
+                className="mt-4 bg-purple-600 px-6 py-3 rounded-full shadow-md shadow-purple-400"
+              >
+                <Text className="text-white font-bold text-lg">Close</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Loading durante il fetching Zonia/Check */}
+            {isFetchingZonia && !isZoniaProcessCompleted && (
+              <View className="mt-4">
+                <ActivityIndicator size="large" color="#6b46c1" />
+                <Text className="text-gray-500 mt-2">
+                  Waiting for confirmations...
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       </Modal>
@@ -860,7 +1044,7 @@ export default function BrowseScreen() {
             ) : (
               <View className="w-full h-4/5 items-center justify-center">
                 <ActivityIndicator size="large" color="#6b46c1" />
-                <Text className="text-gray-600 mt-4">Caricamento mappa...</Text>
+                <Text className="text-gray-600 mt-4">Map loading...</Text>
               </View>
             )}
             <TouchableOpacity

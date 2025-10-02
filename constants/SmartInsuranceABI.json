@@ -39,6 +39,16 @@
                 "internalType": "string",
                 "name": "comparisonType",
                 "type": "string"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "zoniaRequestId",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "bool",
+                "name": "isConditionSatisfied",
+                "type": "bool"
               }
             ],
             "internalType": "struct sensorElement[]",
@@ -238,6 +248,19 @@
   },
   {
     "inputs": [],
+    "name": "allConditionsSatisfied",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "cancelPolicy",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -249,6 +272,11 @@
         "internalType": "bytes32",
         "name": "requestId",
         "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
       }
     ],
     "name": "checkZoniaData",
@@ -277,19 +305,6 @@
         "internalType": "address",
         "name": "",
         "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "conditionsSatisfied",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
       }
     ],
     "stateMutability": "view",
@@ -386,6 +401,16 @@
             "internalType": "string",
             "name": "comparisonType",
             "type": "string"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "zoniaRequestId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bool",
+            "name": "isConditionSatisfied",
+            "type": "bool"
           }
         ],
         "internalType": "struct sensorElement[]",
@@ -478,6 +503,16 @@
         "internalType": "string",
         "name": "comparisonType",
         "type": "string"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "zoniaRequestId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bool",
+        "name": "isConditionSatisfied",
+        "type": "bool"
       }
     ],
     "stateMutability": "view",
@@ -562,6 +597,11 @@
         "internalType": "struct IGate.InputRequest",
         "name": "inputRequest",
         "type": "tuple"
+      },
+      {
+        "internalType": "uint256",
+        "name": "sensorIndex",
+        "type": "uint256"
       }
     ],
     "name": "submitZoniaCheck",
