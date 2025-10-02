@@ -35,14 +35,18 @@ interface IWalletConnectEip1193Provider extends EIP1193Provider {
   request: (args: { method: string; params?: any[] }) => Promise<any>;
 }
 
+interface sensorElement {
+  query: string;
+  target_value: string;
+  comparisonType: string;
+  sensor: string;
+}
+
 interface SmartInsuranceDetails {
   userWallet: string;
   companyWallet: string;
   premiumAmount: string;
-  query: string;
-  sensor: string;
-  target_value: string;
-  comparisonType: string;
+  sensors: sensorElement[];
   geoloc: string;
   payoutAmount: string;
   tokenAddress: string;
@@ -89,10 +93,7 @@ interface AuthContextType {
   ) => Promise<"user" | "company" | null>;
   createSmartInsurance: (
     insuredWalletAddress: string,
-    query: string,
-    sensor: string,
-    target_value: bigint,
-    comparisonType: string,
+    sensors: sensorElement[],
     geoloc: string,
     premiumAmount: string,
     payoutAmount: string,
@@ -690,10 +691,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const createSmartInsurance = async (
     insuredWalletAddress: string,
-    query: string,
-    sensor: string,
-    target_value: bigint,
-    comparisonType: string,
+    sensors: sensorElement[],
     geoloc: string,
     premiumAmount: string,
     payoutAmount: string,
@@ -746,14 +744,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           insuredWalletAddress,
         );
 
-      interface InsuranceInitParams {
-        userWallet: string;
-        companyWallet: string;
-        premiumAmount: ethers.BigNumberish;
+      interface sensorInitParams {
         query: string;
         sensor: string;
         target_value: ethers.BigNumberish;
         comparisonType: string;
+      }
+
+      interface InsuranceInitParams {
+        userWallet: string;
+        companyWallet: string;
+        premiumAmount: ethers.BigNumberish;
+        sensors: sensorInitParams[];
         geoloc: string;
         payoutAmount: ethers.BigNumberish;
         tokenAddress: string;
@@ -768,10 +770,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         userWallet: insuredWalletAddress,
         companyWallet: companyWalletAddress,
         premiumAmount: premiumAmountWei,
-        query: query,
-        sensor: sensor,
-        target_value: target_value,
-        comparisonType: comparisonType,
+        sensors: sensors,
         geoloc: geoloc,
         payoutAmount: payoutAmountWei,
         tokenAddress: tokenAddress,
@@ -1249,10 +1248,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const userWallet = await smartInsuranceContract.userWallet();
       const companyWallet = await smartInsuranceContract.companyWallet();
       const premiumAmountWei = await smartInsuranceContract.premiumAmount();
-      const query = await smartInsuranceContract.query();
-      const sensor = await smartInsuranceContract.sensor();
-      const target_value = await smartInsuranceContract.target_value();
-      const comparisonType = await smartInsuranceContract.comparisonType();
+      const sensors = await smartInsuranceContract.getAllSensors();
       const geoloc = await smartInsuranceContract.geoloc();
       const payoutAmountWei = await smartInsuranceContract.payoutAmount();
       const tokenAddress = await smartInsuranceContract.tokenAddress();
@@ -1268,16 +1264,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         userWallet: userWallet.toString(),
         companyWallet: companyWallet.toString(),
         premiumAmount: premiumAmount,
-        query: query,
-        sensor: sensor,
-        target_value: target_value ?? "max",
-        comparisonType: comparisonType,
+        sensors: sensors,
         geoloc: geoloc,
         payoutAmount: payoutAmount,
         tokenAddress: tokenAddress.toString(),
         currentStatus: Number(currentStatus),
         expirationTimestamp: Number(expirationTimestamp),
       };
+
+      console.log(details);
 
       return details;
     } catch (error: any) {

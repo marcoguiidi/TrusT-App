@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "trustSmart",
+    "scheme": "trustsmart",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/images/splash_screen.png",
@@ -52,14 +52,7 @@
             "DEFAULT"
           ]
         }
-      ],
-      "queries": {
-        "package": [
-          "com.metamask.android",
-          "com.trustwallet.root",
-          "me.rainbow"
-        ]
-      }
+      ]
     },
     "web": {
       "bundler": "metro",

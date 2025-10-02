@@ -6,14 +6,18 @@ import "./IndividualWalletInfo.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+    struct sensorElement {
+        string query;
+        string sensor;
+        uint256 target_value;
+        string comparisonType;
+    }
+
     struct InsuranceInitParams {
     address userWallet;
     address companyWallet;
     uint256 premiumAmount;
-    string  query;
-    string  sensor;
-    uint256 target_value;
-    string comparisonType;
+        sensorElement[] sensors;
     string  geoloc;
     uint256 payoutAmount;
     address tokenAddress;
@@ -28,10 +32,7 @@ contract SmartInsurance is Ownable {
     address public userWallet;
     address public companyWallet;
     uint256 public premiumAmount;
-    string public query;
-    string public sensor;
-    uint256 public target_value;
-    string public comparisonType;
+    sensorElement[] public sensors;
     string public geoloc;
     uint256 public payoutAmount;
     address public tokenAddress;
@@ -64,7 +65,6 @@ contract SmartInsurance is Ownable {
         require(params.userWallet != params.companyWallet, "User and company cannot be the same");
         require(params.premiumAmount > 0, "Premium must be greater than zero");
         require(params.payoutAmount > 0, "Payout must be greater than zero");
-        require(bytes(params.query).length > 0, "Query cannot be empty");
         require(params.tokenAddress != address(0), "Invalid token address");
         require(params.userIndividualWalletInfo != address(0), "Invalid user IndividualWalletInfo address");
         require(params.companyIndividualWalletInfo != address(0), "Invalid company IndividualWalletInfo address");
@@ -74,10 +74,9 @@ contract SmartInsurance is Ownable {
         userWallet = params.userWallet;
         companyWallet = params.companyWallet;
         premiumAmount = params.premiumAmount;
-        query = params.query;
-        sensor = params.sensor;
-        target_value = params.target_value;
-        comparisonType = params.comparisonType;
+        for (uint i = 0; i < params.sensors.length; i++) {
+            sensors.push(params.sensors[i]);
+        }
         geoloc = params.geoloc;
         payoutAmount = params.payoutAmount;
         tokenAddress = params.tokenAddress;
@@ -95,6 +94,10 @@ contract SmartInsurance is Ownable {
 
         emit PolicyCreated(userWallet, companyWallet, premiumAmount, payoutAmount);
         emit StatusChanged(Status.Pending);
+    }
+
+    function getAllSensors() public view returns (sensorElement[] memory) {
+        return sensors;
     }
 
     function stringToUint(string memory s) public returns (uint, bool) {
@@ -127,21 +130,26 @@ contract SmartInsurance is Ownable {
         if( success == false ) {
             revert("Impossible to convert result");
         }
-        if (keccak256(bytes(comparisonType)) == keccak256(bytes("max"))){
-            if( unitRes >= target_value ) {
-                conditionsSatisfied = true;
-         } else {
-                conditionsSatisfied = false;
-            }
-        } else if (keccak256(bytes(comparisonType)) == keccak256(bytes("min"))){
-            if( unitRes <= target_value ) {
-                conditionsSatisfied = true;
+        for (uint i = 0; i < sensors.length; i++){
+            if (keccak256(bytes(sensors[i].comparisonType)) == keccak256(bytes("max"))){
+                if( unitRes >= sensors[i].target_value ) {
+                    conditionsSatisfied = true;
+                } else {
+                    conditionsSatisfied = false;
+                    break;
+                }
+            } else if (keccak256(bytes(sensors[i].comparisonType)) == keccak256(bytes("min"))){
+                if( unitRes <= sensors[i].target_value ) {
+                    conditionsSatisfied = true;
+                } else {
+                    conditionsSatisfied = false;
+                    break;
+                }
             } else {
-                conditionsSatisfied = false;
+                revert("invalid comparison type");
             }
-        } else {
-            revert("invalid comparison type");
         }
+
     }
 
     function submitZoniaCheck(IGate.InputRequest memory inputRequest) public{

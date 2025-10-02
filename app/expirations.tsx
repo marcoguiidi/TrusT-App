@@ -20,16 +20,24 @@ import {
   TrendingUp,
   Coins,
   RefreshCcw,
+  Thermometer,
+  CloudDrizzle,
+  Pin,
 } from "lucide-react-native";
 import * as clipboard from "expo-clipboard";
+
+interface SensorElement {
+  query: string;
+  target_value: string;
+  comparisonType: "min" | "max";
+  sensor: "s4agri:AmbientHumidity" | "saref:Temperature";
+}
 
 interface SmartInsuranceDetails {
   userWallet: string;
   companyWallet: string;
   premiumAmount: string;
-  query: string;
-  sensor: string;
-  target_value: number;
+  sensors: SensorElement[];
   geoloc: string;
   payoutAmount: string;
   tokenAddress: string;
@@ -83,6 +91,43 @@ const DetailRow = ({
   </View>
 );
 
+const SensorDetailRow = ({
+  sensor,
+  index,
+}: {
+  sensor: SensorElement;
+  index: number;
+}) => {
+  const isHumidity = sensor.sensor.includes("Humidity");
+  const icon = isHumidity ? (
+    <CloudDrizzle size={18} color="#06b6d4" />
+  ) : (
+    <Thermometer size={18} color="#f97316" />
+  );
+
+  const typeLabel = isHumidity ? "Ambient Humidity" : "Temperature";
+  const comparison = sensor.comparisonType === "min" ? "≤" : "≥";
+  const unit = isHumidity ? "%" : "°C";
+
+  return (
+    <View className="py-2 border-b border-gray-100">
+      <View className="flex-row items-center mb-1">
+        {icon}
+        <Text className="text-md font-bold text-neutral-700 ml-2">
+          Condition {index + 1} ({typeLabel})
+        </Text>
+      </View>
+      <Text className="text-sm text-neutral-600 ml-6">
+        Trigger when value is{" "}
+        <Text className="font-bold text-lg text-blue-600">
+          {sensor.comparisonType === "min" ? "≤" : "≥"} {sensor.target_value}
+        </Text>
+        {unit}
+      </Text>
+    </View>
+  );
+};
+
 export default function ExpirationsScreen() {
   const router = useRouter();
   const {
@@ -130,10 +175,11 @@ export default function ExpirationsScreen() {
       const currentTimestampInSeconds = Math.floor(Date.now() / 1000);
 
       for (const address of allAddresses) {
-        const details = await getDetailForSmartInsurance(address);
+        //@ts-ignore
+        const details: SmartInsuranceDetails =
+          await getDetailForSmartInsurance(address);
         if (!details) continue;
 
-        // @ts-ignore
         const item: InsuranceItem = { address, details };
         if (
           details.currentStatus === 4 ||
@@ -353,6 +399,11 @@ export default function ExpirationsScreen() {
                 }
               />
               <DetailRow
+                icon={<Pin size={18} color="#4b5563" />}
+                label="Geolocation"
+                value={selectedInsurance.details.geoloc}
+              />
+              <DetailRow
                 icon={<CalendarDays size={18} color="#4b5563" />}
                 label="Expiration"
                 value={new Date(
@@ -364,6 +415,25 @@ export default function ExpirationsScreen() {
                 label="Payout Amount"
                 value={`${selectedInsurance.details.payoutAmount}`}
               />
+
+              <View className="pt-3">
+                <Text className="text-md font-bold text-neutral-700 mb-2">
+                  Sensor Conditions
+                </Text>
+                {selectedInsurance.details.sensors.length > 0 ? (
+                  selectedInsurance.details.sensors.map((sensor, index) => (
+                    <SensorDetailRow
+                      key={index}
+                      sensor={sensor}
+                      index={index}
+                    />
+                  ))
+                ) : (
+                  <Text className="text-sm text-gray-500 ml-2">
+                    No sensor conditions defined.
+                  </Text>
+                )}
+              </View>
             </View>
           )}
           <TouchableOpacity

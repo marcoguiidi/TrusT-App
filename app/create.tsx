@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -24,6 +24,166 @@ import { Divider } from "react-native-paper";
 import MapView, { Marker, Circle, PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
 
+interface Sensor {
+  sensor: "s4agri:AmbientHumidity" | "saref:Temperature";
+  targetValue: string;
+  comparisonType: "min" | "max";
+}
+
+interface sensorElement {
+  query: string;
+  target_value: string;
+  comparisonType: string;
+  sensor: string;
+}
+
+const SENSOR_OPTIONS = [
+  { label: "Ambient Humidity", key: "s4agri:AmbientHumidity", short: "s4agri" },
+  { label: "Temperature", key: "saref:Temperature", short: "saref" },
+];
+
+interface SensorInputProps {
+  sensor: Sensor;
+  setSensor: React.Dispatch<React.SetStateAction<Sensor | null>>;
+  onRemove: (isOnlySensor: boolean) => void;
+  index: number;
+  allSensors: (Sensor | null)[];
+}
+
+const SensorInput: React.FC<SensorInputProps> = ({
+  sensor,
+  setSensor,
+  onRemove,
+  index,
+  allSensors,
+}) => {
+  const isOnlySensor = allSensors.filter(Boolean).length === 1;
+
+  const usedSensorType = useMemo(() => {
+    return allSensors.find((s, i) => s !== null && i !== index)?.sensor;
+  }, [allSensors, index]);
+
+  const handleTypeChange = (key: Sensor["sensor"]) => {
+    if (key === usedSensorType) return;
+    setSensor((prev) => (prev ? { ...prev, sensor: key } : null));
+  };
+
+  const handleComparisonChange = (type: "min" | "max") => {
+    setSensor((prev) => (prev ? { ...prev, comparisonType: type } : null));
+  };
+
+  const handleTargetValueChange = (value: string) => {
+    setSensor((prev) => (prev ? { ...prev, targetValue: value } : null));
+  };
+
+  return (
+    <View className="p-4 border border-purple-300 rounded-lg mb-6 bg-purple-50">
+      <View className="flex-row justify-between items-center mb-4">
+        <Text className="text-lg font-bold text-purple-700">
+          Sensor {index + 1}
+        </Text>
+        <TouchableOpacity
+          onPress={() => onRemove(isOnlySensor)}
+          className={`p-1 ${isOnlySensor ? "opacity-30" : ""}`}
+          disabled={isOnlySensor}
+        >
+          <Text
+            className={`font-semibold ${isOnlySensor ? "text-gray-500" : "text-red-500"}`}
+          >
+            X
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text className="text-sm font-semibold mb-1 text-gray-600">
+        SENSOR TYPE
+      </Text>
+      <View className="flex-row justify-between mt-2 mb-4">
+        {SENSOR_OPTIONS.map((opt) => {
+          const isUsedByOther = opt.key === usedSensorType;
+          return (
+            <TouchableOpacity
+              key={opt.key}
+              className={`flex-1 p-3 mx-1 rounded-lg items-center ${
+                sensor.sensor === opt.key
+                  ? "bg-purple-700 border-purple-700"
+                  : isUsedByOther
+                    ? "bg-gray-200 border-gray-200 opacity-60"
+                    : "bg-gray-100 border-gray-300"
+              } border`}
+              onPress={() => handleTypeChange(opt.key as Sensor["sensor"])}
+              disabled={isUsedByOther}
+            >
+              <Text
+                className={`font-semibold text-center ${
+                  sensor.sensor === opt.key ? "text-white" : "text-gray-700"
+                }`}
+              >
+                {opt.label}
+              </Text>
+              <Text
+                className={`text-xs ${
+                  sensor.sensor === opt.key ? "text-white/70" : "text-gray-500"
+                }`}
+              >
+                ({opt.short})
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <Text className="text-sm font-semibold mb-1 text-gray-600">
+        TARGET VALUE (TRIGGER WHEN)
+      </Text>
+      <View className="flex-row items-center border border-purple-300 rounded-lg overflow-hidden">
+        <View className="flex-row items-center bg-gray-100 h-full mx-1">
+          <TouchableOpacity
+            className={`p-3 mx-1 items-center rounded-full ${
+              sensor.comparisonType === "min"
+                ? "bg-purple-700"
+                : "border border-purple-300"
+            }`}
+            onPress={() => handleComparisonChange("min")}
+          >
+            <Text
+              className={`font-bold text-lg ${
+                sensor.comparisonType === "min" ? "text-white" : "text-gray-700"
+              }`}
+            >
+              {"\u2264"}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            className={`p-3 mx-1 items-center rounded-full ${
+              sensor.comparisonType === "max"
+                ? "bg-purple-700"
+                : "border border-purple-300"
+            }`}
+            onPress={() => handleComparisonChange("max")}
+          >
+            <Text
+              className={`font-bold text-lg ${
+                sensor.comparisonType === "max" ? "text-white" : "text-gray-700"
+              }`}
+            >
+              {"\u2265"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <TextInput
+          className="flex-1 p-3 text-base text-gray-800 bg-gray-50 focus:border-purple-500"
+          placeholder="e.g. 25"
+          placeholderTextColor="#A0AEC0"
+          value={sensor.targetValue}
+          onChangeText={handleTargetValueChange}
+          keyboardType="numeric"
+        />
+      </View>
+    </View>
+  );
+};
+
 export default function CreateScreen() {
   const {
     createSmartInsurance,
@@ -37,11 +197,16 @@ export default function CreateScreen() {
   const [insuredWalletAddress, setInsuredWalletAddress] = useState<string>("");
   const [premiumAmount, setPremiumAmount] = useState<string>("");
   const [payoutAmount, setPayoutAmount] = useState<string>("");
-  const [sensorType, setSensorType] = useState<string>(
-    "s4agri:AmbientHumidity",
-  );
-  const [targetValue, setTargetValue] = useState("");
-  const [comparisonType, setComparisonType] = useState<"min" | "max">("min");
+
+  const [sensor1, setSensor1] = useState<Sensor | null>({
+    sensor: "s4agri:AmbientHumidity",
+    targetValue: "",
+    comparisonType: "min",
+  });
+  const [sensor2, setSensor2] = useState<Sensor | null>(null);
+
+  const allSensors = [sensor1, sensor2];
+
   const [latitude, setLatitude] = useState<string>("");
   const [longitude, setLongitude] = useState<string>("");
   const [radius, setRadius] = useState<string>("");
@@ -120,6 +285,91 @@ export default function CreateScreen() {
     setLongitude(e.nativeEvent.coordinate.longitude.toString());
   };
 
+  const handleDateChange = (event: any, selectedDate: Date | undefined) => {
+    const currentDate = selectedDate || expirationDate;
+    setShowDatePicker(Platform.OS === "ios");
+    setExpirationDate(currentDate);
+  };
+
+  const handleAddSensor = () => {
+    if (sensor1 && !sensor2) {
+      const sensor1Type = sensor1.sensor;
+      const newSensorType =
+        SENSOR_OPTIONS.find((opt) => opt.key !== sensor1Type)?.key ||
+        SENSOR_OPTIONS[0].key;
+
+      setSensor2({
+        sensor: newSensorType as Sensor["sensor"],
+        targetValue: "",
+        comparisonType: "min",
+      });
+    } else if (!sensor1) {
+      setSensor1({
+        sensor: "s4agri:AmbientHumidity",
+        targetValue: "",
+        comparisonType: "min",
+      });
+    }
+  };
+
+  const handleRemoveSensor = useCallback(
+    (indexToRemove: number) => (isOnlySensor: boolean) => {
+      if (isOnlySensor) {
+        if (indexToRemove === 0 && sensor1) {
+          setSensor1({
+            sensor: "s4agri:AmbientHumidity",
+            targetValue: "",
+            comparisonType: "min",
+          });
+        } else if (indexToRemove === 1 && sensor2) {
+          setSensor2(null);
+        }
+        return;
+      }
+
+      if (indexToRemove === 0) {
+        setSensor1(sensor2);
+        setSensor2(null);
+      } else if (indexToRemove === 1) {
+        setSensor2(null);
+      }
+    },
+    [sensor1, sensor2],
+  );
+
+  const generateSensorElements = (
+    latNum: number,
+    lonNum: number,
+    radNum: number,
+  ): sensorElement[] => {
+    const activeSensors: Sensor[] = [sensor1, sensor2].filter(
+      (s): s is Sensor => s !== null,
+    );
+
+    return activeSensors.map((s) => {
+      const queryJson = {
+        topic: s.sensor,
+        geo: {
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: [lonNum, latNum],
+          },
+          properties: {
+            radius: radNum,
+          },
+        },
+      };
+
+      return {
+        query: JSON.stringify(queryJson),
+        target_value: s.targetValue,
+        comparisonType: s.comparisonType,
+        sensor: s.sensor,
+      };
+    });
+  };
+
   const handleSubmit = async () => {
     setErrorMessage("");
     setSuccessMessage("");
@@ -127,6 +377,27 @@ export default function CreateScreen() {
 
     const formattedPremiumAmount = premiumAmount.replace(",", ".");
     const formattedPayoutAmount = payoutAmount.replace(",", ".");
+    const latNum = parseFloat(latitude.replace(",", "."));
+    const lonNum = parseFloat(longitude.replace(",", "."));
+    const radNum = parseFloat(radius.replace(",", "."));
+
+    const activeSensors = [sensor1, sensor2].filter(
+      (s) => s !== null,
+    ) as Sensor[];
+
+    if (activeSensors.length === 0) {
+      setErrorMessage("At least one sensor is required.");
+      setIsLoading(false);
+      return;
+    }
+
+    if (sensor1 && sensor2 && sensor1.sensor === sensor2.sensor) {
+      setErrorMessage(
+        "If two sensors are used, they must be of different types (e.g., Humidity AND Temperature).",
+      );
+      setIsLoading(false);
+      return;
+    }
 
     if (!ethers.isAddress(insuredWalletAddress)) {
       setErrorMessage("Insured Wallet address not valid.");
@@ -149,16 +420,25 @@ export default function CreateScreen() {
       setIsLoading(false);
       return;
     }
-
-    if (!sensorType) {
-      setErrorMessage("Please select a sensor type.");
+    if (expirationDate.getTime() <= Date.now()) {
+      setErrorMessage("Expiration date must be in the future.");
       setIsLoading(false);
       return;
     }
-    const latNum = parseFloat(latitude.replace(",", "."));
-    const lonNum = parseFloat(longitude.replace(",", "."));
-    const radNum = parseFloat(radius.replace(",", "."));
-    const targetValueNum = parseFloat(targetValue.replace(",", "."));
+    if (!ethers.isAddress(tokenAddress)) {
+      setErrorMessage("Token address not valid.");
+      setIsLoading(false);
+      return;
+    }
+
+    for (const sensor of activeSensors) {
+      const targetValueNum = parseFloat(sensor.targetValue.replace(",", "."));
+      if (isNaN(targetValueNum)) {
+        setErrorMessage(`Target value for ${sensor.sensor} is not valid.`);
+        setIsLoading(false);
+        return;
+      }
+    }
 
     if (isNaN(latNum) || latNum < -90 || latNum > 90) {
       setErrorMessage("Latitude must be a valid number between -90 and 90.");
@@ -176,35 +456,11 @@ export default function CreateScreen() {
       return;
     }
 
-    if (!ethers.isAddress(tokenAddress)) {
-      setErrorMessage("Token address not valid.");
-      setIsLoading(false);
-      return;
-    }
-
-    if (expirationDate.getTime() <= Date.now()) {
-      setErrorMessage("Expiration date must be in the future.");
-      setIsLoading(false);
-      return;
-    }
     const expirationTimestamp = BigInt(
       Math.floor(expirationDate.getTime() / 1000),
     );
-
-    const queryJson = {
-      topic: sensorType,
-      geo: {
-        type: "Feature",
-        geometry: {
-          type: "Point",
-          coordinates: [latNum, lonNum],
-        },
-        properties: {
-          radius: radNum,
-        },
-      },
-    };
-    const query = JSON.stringify(queryJson);
+    const geoloc = `lat: ${latNum}, lon: ${lonNum}, radius: ${radNum} m`;
+    const sensorsData = generateSensorElements(latNum, lonNum, radNum);
 
     try {
       const companyWalletAddress = walletAddress || "";
@@ -216,16 +472,9 @@ export default function CreateScreen() {
         return;
       }
 
-      const geoloc = `lat: ${latNum}, lon: ${lonNum}, radius: ${radNum} m`;
-
-      const targetValueBigInt = ethers.toBigInt(targetValueNum);
-
       const deployedInsuranceAddress = await createSmartInsurance(
         insuredWalletAddress,
-        query,
-        sensorType,
-        targetValueBigInt,
-        comparisonType,
+        sensorsData,
         geoloc,
         formattedPremiumAmount,
         formattedPayoutAmount,
@@ -240,9 +489,12 @@ export default function CreateScreen() {
         setInsuredWalletAddress("");
         setPremiumAmount("");
         setPayoutAmount("");
-        setSensorType("s4agri:AmbientHumidity");
-        setTargetValue("");
-        setComparisonType("min");
+        setSensor1({
+          sensor: "s4agri:AmbientHumidity",
+          targetValue: "",
+          comparisonType: "min",
+        });
+        setSensor2(null);
         setLatitude("");
         setLongitude("");
         setRadius("");
@@ -277,11 +529,9 @@ export default function CreateScreen() {
               placeholderTextColor="#A0AEC0"
               value={insuredWalletAddress}
               onChangeText={setInsuredWalletAddress}
-              keyboardType="default"
               autoCapitalize="none"
             />
           </View>
-
           <View className="mb-4">
             <Text className="text-sm font-semibold mb-1 text-gray-600">
               PREMIUM AMOUNT (IN TOKEN UNITS)
@@ -295,7 +545,6 @@ export default function CreateScreen() {
               keyboardType="numeric"
             />
           </View>
-
           <View className="mb-4">
             <Text className="text-sm font-semibold mb-1 text-gray-600">
               PAYOUT AMOUNT (IN TOKEN UNITS)
@@ -309,7 +558,6 @@ export default function CreateScreen() {
               keyboardType="numeric"
             />
           </View>
-
           <View className="mb-4">
             <Text className="text-sm font-semibold mb-1 text-gray-600">
               EXPIRATION DATE
@@ -327,10 +575,7 @@ export default function CreateScreen() {
                   mode="date"
                   display="default"
                   minimumDate={new Date()}
-                  onChange={(event, selectedDate) => {
-                    const currentDate = selectedDate || expirationDate;
-                    setExpirationDate(currentDate);
-                  }}
+                  onChange={handleDateChange}
                 />
               )}
               <Image
@@ -340,7 +585,6 @@ export default function CreateScreen() {
               />
             </TouchableOpacity>
           </View>
-
           <View className="mb-8 mt-4">
             <Text className="text-sm font-semibold mb-1 text-gray-600">
               TOKEN ADDRESS (ERC-20)
@@ -348,129 +592,55 @@ export default function CreateScreen() {
             <TextInput
               className="w-full p-3 border border-gray-300 rounded-lg text-base bg-gray-100 text-gray-500"
               placeholder="0x..."
-              placeholderTextColor="#A0AEC0"
               value={tokenAddress}
               editable={false}
             />
           </View>
 
           <Divider className="my-6" />
+          <Text className="text-xl font-bold mb-4 text-purple-700 text-center">
+            Sensor Conditions (Max 2)
+          </Text>
+
+          {sensor1 && (
+            <SensorInput
+              sensor={sensor1}
+              setSensor={setSensor1}
+              onRemove={handleRemoveSensor(0)}
+              index={0}
+              allSensors={allSensors}
+            />
+          )}
+
+          {sensor2 && (
+            <SensorInput
+              sensor={sensor2}
+              setSensor={setSensor2}
+              onRemove={handleRemoveSensor(1)}
+              index={1}
+              allSensors={allSensors}
+            />
+          )}
+
+          <View className="justify-center items-center mb-6">
+            <TouchableOpacity
+              onPress={handleAddSensor}
+              disabled={!!sensor2}
+              className={`bg-purple-500 rounded-full w-[250px] h-[40px] items-center justify-center ${
+                !!sensor2 ? "opacity-50" : ""
+              }`}
+            >
+              <Text className="text-white font-bold text-lg">
+                Add Sensor ({[sensor1, sensor2].filter(Boolean).length}/2)
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <Divider className="my-6" />
 
           <Text className="text-xl font-bold mb-4 text-purple-700 text-center">
-            Geographic Query Details
+            Geographic Details
           </Text>
-          <View className="mb-4">
-            <Text className="text-sm font-semibold mb-1 text-gray-600">
-              SENSOR TYPE
-            </Text>
-            <View className="flex-row justify-between mt-2">
-              <TouchableOpacity
-                className={`flex-1 p-3 mr-2 rounded-lg items-center ${
-                  sensorType === "s4agri:AmbientHumidity"
-                    ? "bg-purple-700 border-purple-700"
-                    : "bg-gray-100 border-gray-300"
-                } border`}
-                onPress={() => setSensorType("s4agri:AmbientHumidity")}
-              >
-                <Text
-                  className={`font-semibold ${
-                    sensorType === "s4agri:AmbientHumidity"
-                      ? "text-white"
-                      : "text-gray-700"
-                  }`}
-                >
-                  Ambient Humidity
-                </Text>
-                <Text
-                  className={`text-xs ${
-                    sensorType === "s4agri:AmbientHumidity"
-                      ? "text-white/70"
-                      : "text-gray-500"
-                  }`}
-                >
-                  (s4agri)
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                className={`flex-1 p-3 ml-2 rounded-lg items-center ${
-                  sensorType === "saref:Temperature"
-                    ? "bg-purple-700 border-purple-700"
-                    : "bg-gray-100 border-gray-300"
-                } border`}
-                onPress={() => setSensorType("saref:Temperature")}
-              >
-                <Text
-                  className={`font-semibold ${
-                    sensorType === "saref:Temperature"
-                      ? "text-white"
-                      : "text-gray-700"
-                  }`}
-                >
-                  Temperature
-                </Text>
-                <Text
-                  className={`text-xs ${
-                    sensorType === "saref:Temperature"
-                      ? "text-white/70"
-                      : "text-gray-500"
-                  }`}
-                >
-                  (saref)
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View className="mb-4">
-            <Text className="text-sm font-semibold mb-1 text-gray-600">
-              TARGET VALUE (TRIGGER WHEN)
-            </Text>
-            <View className="flex-row items-center border border-purple-300 rounded-lg overflow-hidden">
-              <View className="flex-row items-center bg-gray-100 h-full mx-1">
-                <TouchableOpacity
-                  className={`p-3 mx-1 items-center rounded-full ${
-                    comparisonType === "min"
-                      ? "bg-purple-700"
-                      : "border border-purple-300"
-                  }`}
-                  onPress={() => setComparisonType("min")}
-                >
-                  <Text
-                    className={`font-semibold ${
-                      comparisonType === "min" ? "text-white" : "text-gray-700"
-                    }`}
-                  >
-                    ≤
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  className={`p-3 mx-1 items-center rounded-full ${
-                    comparisonType === "max"
-                      ? "bg-purple-700"
-                      : "border border-purple-300"
-                  }`}
-                  onPress={() => setComparisonType("max")}
-                >
-                  <Text
-                    className={`font-semibold ${
-                      comparisonType === "max" ? "text-white" : "text-gray-700"
-                    }`}
-                  >
-                    ≥
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <TextInput
-                className="flex-1 p-3 text-base text-gray-800 bg-gray-50 focus:border-purple-500"
-                placeholder="25"
-                placeholderTextColor="#A0AEC0"
-                value={targetValue}
-                onChangeText={setTargetValue}
-                keyboardType="numeric"
-              />
-            </View>
-          </View>
 
           <View className="flex justify-between mb-4">
             <Text className="text-sm font-semibold mb-1 text-gray-600">
@@ -506,6 +676,7 @@ export default function CreateScreen() {
               </MapView>
             </View>
           </View>
+
           <View className="mb-4">
             <Text className="text-sm font-semibold mb-1 text-gray-600">
               RADIUS (meters)
@@ -519,7 +690,6 @@ export default function CreateScreen() {
               keyboardType="numeric"
             />
           </View>
-
           {isLoading && (
             <View className="flex-row items-center justify-center mb-4 mt-6">
               <ActivityIndicator
@@ -561,6 +731,7 @@ export default function CreateScreen() {
               </Text>
             </View>
           )}
+
           <View className="justify-center items-center my-4">
             <TouchableOpacity
               onPress={handleSubmit}

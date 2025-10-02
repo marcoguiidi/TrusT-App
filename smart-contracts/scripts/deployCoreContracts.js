@@ -65,7 +65,7 @@ async function main() {
   console.log("UserCompanyRegistry deployed to:", registryAddress);
   //*/
   // --- Salva i dati dei contratti nella cartella constants del tuo progetto Expo ---
-  const constantsDir = path.resolve(__dirname, "../../constants"); // your-expo-project/constants/
+  const constantsDir = path.resolve(__dirname, "../../constants");
 
   if (!fs.existsSync(constantsDir)) {
     fs.mkdirSync(constantsDir, { recursive: true });

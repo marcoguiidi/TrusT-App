@@ -18,14 +18,18 @@ import * as Clipboard from "expo-clipboard";
 import { AlertCircle, CheckCircle, Clock } from "lucide-react-native";
 import MapView, { Circle, Marker, PROVIDER_GOOGLE } from "react-native-maps";
 
+interface sensorElement {
+  query: string;
+  target_value: string;
+  comparisonType: string;
+  sensor: string;
+}
+
 interface SmartInsuranceDetails {
   userWallet: string;
   companyWallet: string;
   premiumAmount: string;
-  query: string;
-  sensor: string;
-  target_value: number;
-  comparisonType: string;
+  sensors: sensorElement[]; // Array di sensori
   geoloc: string;
   payoutAmount: string;
   tokenAddress: string;
@@ -49,6 +53,11 @@ const zoniaStates = [
   "completed",
   "failed",
 ];
+
+const getSensorName = (uri: string) => {
+  const parts = uri.split(":");
+  return parts.length > 1 ? parts[1].toUpperCase() : uri.toUpperCase();
+};
 
 export default function BrowseScreen() {
   const {
@@ -168,6 +177,14 @@ export default function BrowseScreen() {
   };
 
   const handleSubmitZonia = async () => {
+    if (details?.currentStatus !== 1) {
+      Alert.alert(
+        "Invalid Status",
+        "Data check can only be requested for active policies.",
+      );
+      return;
+    }
+
     try {
       setIsFetchingZonia(true);
       const result = await submitZoniaRequest(
@@ -201,6 +218,9 @@ export default function BrowseScreen() {
       Alert.alert("Success", "The insurance is cancelled.");
 
       setKey((prev) => prev + 1);
+      setDetailedInsuranceAddress("");
+      setDetails(null);
+      setShowDetailsModal(false);
     } catch (e: any) {
       console.error("Error:", e);
       Alert.alert("Error", e);
@@ -405,11 +425,11 @@ export default function BrowseScreen() {
           setShowDetailsModal(false);
         }}
       >
-        <View className="flex-1 justify-center items-center bg-black/60 p-4">
-          <View className="bg-white rounded-3xl p-6 items-center shadow-2xl w-full max-w-md max-h-[90%]">
+        <View className="flex-1 justify-center items-center bg-black/60 p-2">
+          <View className="bg-white rounded-3xl p-6 items-center shadow-2xl w-full max-w-md max-h-[95%]">
             <ScrollView className="w-full">
-              <View className="items-center mb-6">
-                <Text className="text-3xl font-extrabold text-purple-800 text-center mb-2">
+              <View className="items-center mb-1">
+                <Text className="text-3xl font-extrabold text-purple-800 text-center">
                   Smart Insurance Details
                 </Text>
                 <View className="flex-row items-center bg-gray-100 rounded-full px-4 py-2">
@@ -435,8 +455,8 @@ export default function BrowseScreen() {
                 />
               ) : details ? (
                 <>
-                  <View className="w-full mb-6">
-                    <View className="flex-row justify-between items-center bg-purple-50 p-4 rounded-xl mb-3">
+                  <View className="w-full mb-3">
+                    <View className="flex-row justify-between items-center bg-purple-50 p-2 rounded-xl mb-2">
                       <Text className="text-base font-semibold text-purple-700">
                         Premium
                       </Text>
@@ -444,7 +464,7 @@ export default function BrowseScreen() {
                         {details.premiumAmount} TTK
                       </Text>
                     </View>
-                    <View className="flex-row justify-between items-center bg-green-50 p-4 rounded-xl mb-3">
+                    <View className="flex-row justify-between items-center bg-green-50 p-4 rounded-xl mb-2">
                       <Text className="text-base font-semibold text-green-700">
                         Payout
                       </Text>
@@ -469,7 +489,7 @@ export default function BrowseScreen() {
                       </Text>
                     </View>
                   </View>
-                  <View className="w-full border-t border-gray-200 pt-4">
+                  <View className="w-full border-t border-gray-200 pt-1">
                     <View className="flex-row items-center justify-between py-2 border-b border-gray-100">
                       <View className="flex-row items-center">
                         <Image
@@ -522,39 +542,44 @@ export default function BrowseScreen() {
                       </Text>
                     </View>
 
-                    <View className="flex-row items-center justify-between py-2 border-b border-gray-100">
-                      <View className="flex-row items-center">
-                        <Image
-                          source={require("../assets/images/sensor-icon.png")}
-                          className="w-5 h-5 mr-3"
-                          resizeMode="contain"
-                        />
-                        <Text className="text-sm font-medium text-gray-700">
-                          Sensor
-                        </Text>
-                      </View>
-                      <Text className="text-sm font-bold text-gray-800">
-                        {details.sensor.split(":")[1]}
+                    <View className="w-full pt-2">
+                      <Text className="text-base font-semibold text-gray-800 mb-2">
+                        Sensor Conditions ({details.sensors.length})
                       </Text>
+                      {details.sensors.map((sensor, index) => (
+                        <View
+                          key={index}
+                          className="border border-purple-200 rounded-lg p-3 mb-2 bg-purple-50"
+                        >
+                          <View className="flex-row items-center justify-between pb-1">
+                            <View className="flex-row items-center">
+                              <Image
+                                source={require("../assets/images/sensor-icon.png")}
+                                className="w-4 h-4 mr-2"
+                                resizeMode="contain"
+                              />
+                              <Text className="text-xs font-semibold text-purple-700">
+                                Sensor {index + 1}
+                              </Text>
+                            </View>
+                            <Text className="text-sm font-bold text-purple-900">
+                              {getSensorName(sensor.sensor)}
+                            </Text>
+                          </View>
+                          <View className="flex-row items-center justify-between pt-1 border-t border-purple-100">
+                            <Text className="text-xs font-medium text-gray-600">
+                              Target:
+                            </Text>
+                            <Text className="text-sm font-bold text-gray-800">
+                              {sensor.comparisonType === "min" ? "≤" : "≥"}{" "}
+                              {sensor.target_value}
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
                     </View>
 
-                    <View className="flex-row items-center justify-between py-2 border-b border-gray-100">
-                      <View className="flex-row items-center">
-                        <Image
-                          source={require("../assets/images/value-icon.png")}
-                          className="w-5 h-5 mr-3"
-                          resizeMode="contain"
-                        />
-                        <Text className="text-sm font-medium text-gray-700">
-                          Target Value{" "}
-                          {details.comparisonType == "min" ? "≤" : "≥"}
-                        </Text>
-                      </View>
-                      <Text className="text-sm font-bold text-gray-800">
-                        {details.target_value}
-                      </Text>
-                    </View>
-                    <View className="flex-row items-center justify-between py-2 border-b border-gray-100">
+                    <View className="flex-row items-center justify-between py-2 border-b border-gray-100 mt-2">
                       <View className="flex-row items-center">
                         <Image
                           source={require("../assets/images/token-icon.png")}
@@ -619,7 +644,7 @@ export default function BrowseScreen() {
                       </TouchableOpacity>
                     </View>
                   </View>
-                  <View className="w-full mt-6">
+                  <View className="w-full mt-2">
                     {details.currentStatus === 0 &&
                       walletAddress?.toLowerCase() ===
                         details.userWallet.toLowerCase() && (
@@ -768,6 +793,7 @@ export default function BrowseScreen() {
                     setShowDetailsModal(true);
                     setShowZoniaModal(false);
                     setResultZonia(undefined);
+                    setKey((prev) => prev + 1);
                   }}
                   className="mt-4 bg-purple-600 px-6 py-3 rounded-full shadow-md shadow-purple-400"
                 >
