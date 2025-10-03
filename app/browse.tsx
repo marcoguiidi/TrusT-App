@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   Modal,
   Platform,
-  FlatList, // AGGIUNTO per il supporto della lista
+  FlatList,
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { useRouter } from "expo-router";
@@ -19,7 +19,6 @@ import * as Clipboard from "expo-clipboard";
 import { AlertCircle, CheckCircle, Clock } from "lucide-react-native";
 import MapView, { Circle, Marker, PROVIDER_GOOGLE } from "react-native-maps";
 
-// Tipi definiti per la gestione multi-sensore
 export type ZoniaRequestState =
   | "submitted"
   | "seeded"
@@ -33,7 +32,7 @@ export interface SensorRequestProgress {
   requestId: string;
   status: ZoniaRequestState;
   result?: string;
-  finalCheckSuccess?: boolean; // True solo se checkZoniaData non è revertita
+  finalCheckSuccess?: boolean;
 }
 
 interface sensorElement {
@@ -47,7 +46,7 @@ interface SmartInsuranceDetails {
   userWallet: string;
   companyWallet: string;
   premiumAmount: string;
-  sensors: sensorElement[]; // Array di sensori
+  sensors: sensorElement[];
   geoloc: string;
   payoutAmount: string;
   tokenAddress: string;
@@ -112,13 +111,11 @@ export default function BrowseScreen() {
   const [showMapModal, setShowMapModal] = useState(false);
   const [mapData, setMapData] = useState<MapData | null>(null);
 
-  // NUOVI STATI PER LA GESTIONE MULTI-SENSORE
   const [allRequestsProgress, setAllRequestsProgress] = useState<
     SensorRequestProgress[]
   >([]);
   const [showZoniaModal, setShowZoniaModal] = useState(false);
 
-  // Variabili derivate per lo stato del processo
   const isZoniaProcessCompleted =
     allRequestsProgress.length > 0 &&
     allRequestsProgress.every(
@@ -129,17 +126,16 @@ export default function BrowseScreen() {
     isZoniaProcessCompleted &&
     allRequestsProgress.every((r) => r.finalCheckSuccess === true);
 
-  // Funzione di callback per aggiornare lo stato in tempo reale (passata a submitZoniaRequest)
   const updateProgress = (
     requestId: string,
     newStatus: ZoniaRequestState,
     result?: string,
+    sensorIndex?: number,
   ) => {
     setAllRequestsProgress((prev) => {
       if (prev.length === 0) return prev;
 
       return prev.map((req) => {
-        // Solo se l'ID di richiesta è valido (quindi dopo la submission on-chain)
         if (req.requestId && req.requestId === requestId) {
           return {
             ...req,
@@ -147,12 +143,20 @@ export default function BrowseScreen() {
             result: result || req.result,
           };
         }
-        // Gestione del caso iniziale in cui l'ID non è ancora noto
-        if (!req.requestId && newStatus === "submitted") {
-          // Questo caso è gestito direttamente dalla Promise.all in handleSubmitZonia,
-          // ma manteniamo la sicurezza.
-          return req;
+
+        if (
+          newStatus === "submitted" &&
+          !req.requestId &&
+          sensorIndex !== undefined &&
+          req.sensorIndex === sensorIndex
+        ) {
+          return {
+            ...req,
+            requestId: requestId,
+            status: newStatus,
+          };
         }
+
         return req;
       });
     });
@@ -239,13 +243,12 @@ export default function BrowseScreen() {
       return;
     }
 
-    // 1. Inizializza lo stato di progresso per la UI
     const initialProgress: SensorRequestProgress[] = details.sensors.map(
       (sensor, index) => ({
         sensorIndex: index,
         sensorQuery: sensor.query,
         requestId: "",
-        status: "submitted" as const,
+        status: "initial" as const,
       }),
     );
     setAllRequestsProgress(initialProgress);
@@ -255,16 +258,14 @@ export default function BrowseScreen() {
     try {
       setIsFetchingZonia(true);
 
-      // 2. Chiama la funzione con la callback di aggiornamento
       const finalResults = await submitZoniaRequest(
         detailedInsuranceAddress,
         1,
         1,
         10,
-        updateProgress, // Passa la callback
+        updateProgress,
       );
 
-      // 3. Aggiorna lo stato finale dopo che tutte le promesse sono risolte
       setAllRequestsProgress(finalResults);
     } catch (e: any) {
       console.error("Errore durante submitZoniaRequest:", e);
@@ -273,7 +274,6 @@ export default function BrowseScreen() {
         `Zonia Submission Failed: ${e.message || e.toString()}`,
       );
 
-      // Se fallisce, resetta tutto
       setAllRequestsProgress([]);
       setShowZoniaModal(false);
       setShowDetailsModal(true);
@@ -353,7 +353,6 @@ export default function BrowseScreen() {
       await paySmartInsurancePayout(detailedInsuranceAddress);
       Alert.alert("Success", "The payout is received.");
 
-      // Resetta stato e chiudi modale
       setAllRequestsProgress([]);
       setShowZoniaModal(false);
 
@@ -364,7 +363,6 @@ export default function BrowseScreen() {
     }
   };
 
-  // Funzioni di stile per il progress bar
   const getCircleStyle = (index: number, currentStatus: ZoniaRequestState) => {
     const currentIndex = zoniaStates.indexOf(currentStatus);
     if (index < currentIndex) return "bg-purple-600";
@@ -382,7 +380,6 @@ export default function BrowseScreen() {
     return "text-gray-400";
   };
 
-  // Nuovo componente per renderizzare l'elemento di progresso di un singolo sensore
   const SensorProgressItem = ({ item }: { item: SensorRequestProgress }) => {
     const icon =
       item.status === "completed" && item.finalCheckSuccess ? (
@@ -413,7 +410,6 @@ export default function BrowseScreen() {
 
     const showSummary = item.status === "completed" || item.status === "failed";
 
-    // Recupera il nome del sensore
     const sensorDetails = details?.sensors[item.sensorIndex];
     const sensorName = sensorDetails
       ? getSensorName(sensorDetails.sensor)
@@ -449,7 +445,7 @@ export default function BrowseScreen() {
         {showSummary && (
           <View className="w-full bg-gray-50 p-2 rounded-lg mt-2 border border-gray-100">
             <Text className="font-bold text-gray-700 text-sm mb-1">
-              Risultato (Raw):
+              Result (Raw):
             </Text>
             <ScrollView className="max-h-[60px]">
               <Text className="text-gray-600 text-xs break-words leading-4">
@@ -925,7 +921,6 @@ export default function BrowseScreen() {
               Zonia Status ({allRequestsProgress.length} Sensors)
             </Text>
 
-            {/* Lista dei progressi dei sensori */}
             <FlatList
               data={allRequestsProgress}
               renderItem={SensorProgressItem}
@@ -943,7 +938,6 @@ export default function BrowseScreen() {
               }
             />
 
-            {/* Pulsante Request Payout (Visibile solo se tutti i check sono OK) */}
             {isZoniaProcessCompleted &&
               allChecksPassed &&
               details &&
@@ -960,11 +954,10 @@ export default function BrowseScreen() {
                 </TouchableOpacity>
               )}
 
-            {/* Pulsante Close (Visibile solo quando l'intero processo è terminato) */}
             {isZoniaProcessCompleted && (
               <TouchableOpacity
                 onPress={() => {
-                  setAllRequestsProgress([]); // Resetta lo stato di progresso
+                  setAllRequestsProgress([]);
                   setShowDetailsModal(true);
                   setShowZoniaModal(false);
                   setKey((prev) => prev + 1);
@@ -975,7 +968,6 @@ export default function BrowseScreen() {
               </TouchableOpacity>
             )}
 
-            {/* Loading durante il fetching Zonia/Check */}
             {isFetchingZonia && !isZoniaProcessCompleted && (
               <View className="mt-4">
                 <ActivityIndicator size="large" color="#6b46c1" />

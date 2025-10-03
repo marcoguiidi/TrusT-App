@@ -164,6 +164,7 @@ type UpdateProgressCallback = (
   requestId: string,
   newStatus: ZoniaRequestState,
   result?: string,
+  sensorIndex?: number,
 ) => void;
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -1422,7 +1423,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      // Inizializzazioni e interfacce
       const smartInsuranceContractRead = new Contract(
         insuranceAddress,
         SMART_INSURANCE_ABI,
@@ -1430,7 +1430,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       );
       const InsuranceIface = new ethers.Interface(SMART_INSURANCE_ABI);
 
-      // @ts-ignore: Assumiamo che getAllSensors ritorni SensorElementFrontend[]
+      // @ts-ignore
       const sensors: SensorElementFrontend[] =
         await smartInsuranceContractRead.getAllSensors();
       if (sensors.length === 0) {
@@ -1453,8 +1453,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         ethersProviderRef.current,
       );
 
-      // --- 1. APPROVAZIONE (UNICA) ---
-      const totalFee = 10n;
+      const totalFee = 20n;
 
       const approveData = zoniaTokenIface.encodeFunctionData("approve", [
         insuranceAddress,
@@ -1482,27 +1481,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       console.log("Approval successful and confirmed.");
 
-      // --- 2. SOTTOMISSIONI MULTIPLE IN PARALLELO e ESTRAZIONE RequestID ---
-      const submissionPromises = sensors.map(async (sensor, index) => {
+      const initialResults: SensorRequestProgress[] = [];
+
+      for (const [index, sensor] of sensors.entries()) {
         if (!ethersProviderRef.current) {
           throw new Error("Unable to send submission, provider not ready");
         }
 
-        if (!chainParams) {
-          chainParams = { w1: 25, w2: 25, w3: 25, w4: 25 };
+        let currentChainParams = chainParams;
+        if (!currentChainParams) {
+          currentChainParams = { w1: 25, w2: 25, w3: 25, w4: 25 };
         }
 
         const inputData: InputRequest = {
           query: sensor.query,
-          chainParams: chainParams,
+          chainParams: currentChainParams,
           ko: ko,
           ki: ki,
           fee: fee,
         };
 
+        console.log("parametri della richiesta:", inputData, index);
+
         const submitData = InsuranceIface.encodeFunctionData(
           "submitZoniaCheck",
-          [inputData, BigInt(index)],
+          [inputData, index],
+        );
+
+        console.log(
+          `Invio transazione submitZoniaCheck per sensore ${index}...`,
         );
 
         const submitTxHash = await (
@@ -1519,14 +1526,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           ],
         });
 
+        console.log(
+          `Hash per sensore ${index}: ${submitTxHash}. In attesa di conferma...`,
+        );
+
         // @ts-ignore
         const submitReceipt =
           await ethersProviderRef.current.waitForTransaction(submitTxHash);
+
         if (!submitReceipt || submitReceipt.status === 0) {
           throw new Error(
             `Submit transaction failed for sensor index ${index}.`,
           );
         }
+
+        console.log(`Transazione per sensore ${index} confermata.`);
 
         let requestId: string | undefined;
         for (const log of submitReceipt.logs) {
@@ -1536,9 +1550,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               requestId = parsedLog.args[0];
               break;
             }
-          } catch (e) {
-            /* ignore */
-          }
+          } catch (e) {}
         }
 
         if (!requestId) {
@@ -1547,21 +1559,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           );
         }
 
-        // Aggiorna lo stato UI dopo la sottomissione
-        updateProgress(requestId, "submitted");
+        console.log("Aggiorno lo stato clinet");
+        updateProgress(requestId, "submitted", undefined, index);
 
-        return {
+        initialResults.push({
           sensorIndex: index,
           sensorQuery: sensor.query,
           requestId: requestId,
           status: "submitted" as const,
-        };
-      });
+        });
+      }
 
-      const initialResults: SensorRequestProgress[] =
-        await Promise.all(submissionPromises);
-
-      // --- 3. ATTESA EVENTI Zonia in Parallelo ---
       const zoniaEventPromises = initialResults.map(
         ({ requestId, sensorIndex, sensorQuery }) => {
           return new Promise<SensorRequestProgress>((resolve, _reject) => {
